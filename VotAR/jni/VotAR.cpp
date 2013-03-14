@@ -35,12 +35,6 @@ void benchmarkElapsed(const char *text) {
 }
 
 
-inline void swap(float *a, float *b) {
-	float tmp=*a;
-	*a=*b;
-	*b=tmp;
-}
-
 #define max(a,b) \
   ({ __typeof__ (a) _a = (a); \
       __typeof__ (b) _b = (b); \
@@ -82,42 +76,6 @@ void average33(unsigned int *inpixels, unsigned int *outpixels,  unsigned int wi
 	}
 }
 
-// using http://lolengine.net/blog/2013/01/13/fast-rgb-to-hsv algorithm from "sam"
-void rgb2hsv(unsigned int *pixels, unsigned int pixelcount) {
-	for (int i=0 ; i<pixelcount ; i++) {
-		float K = 0.f;
-		float r,g,b;
-		unsigned int h,s,v;
-		unsigned int *currentpixel=&(pixels[i]);
-
-		// 0xFF0000FF=red
-		// 0xFF00FF00=green
-		// 0xFFFF0000=blue
-		r = ((float)( *currentpixel        & 0x000000FF)) / 255.0f;
-		g = ((float)((*currentpixel >> 8)  & 0x000000FF)) / 255.0f;
-		b = ((float)((*currentpixel >> 16) & 0x000000FF)) / 255.0f;
-
-		if (g < b)
-		{
-			swap(&g, &b);
-			K = -1.f;
-		}
-
-		if (r < g)
-		{
-			swap(&r, &g);
-			K = -2.f / 6.f - K;
-		}
-
-		float chroma = r - min(g, b);
-
-		h = (int) (fabs(K + (g - b) / (6.f * chroma + 1e-20f)) * 255.0f);
-		s = (int) ((chroma / (r + 1e-20f)) * 255.0f);
-		v = (int) (r * 255.0f);
-		*currentpixel= 0xFF000000 | (( v << 16 ) & 0x00FF0000) | (( s << 8 ) & 0x0000FF00)| (h & 0x000000FF);
-	}
-}
-
 
 
 // combine many operation to get an easier to work on image :
@@ -136,8 +94,6 @@ unsigned int *generateWorkingImage(unsigned int *inpixels, unsigned int width, u
 
 	average33(inpixels, workpixels, width, height);
 	benchmarkElapsed("average33");
-//	rgb2hsv(workpixels, pixelcount);
-//	benchmarkElapsed("rgb2hsv");
 	return workpixels;
 }
 
@@ -160,35 +116,6 @@ unsigned int *generateWorkingImage(unsigned int *inpixels, unsigned int width, u
 #define HUEDIFF_MINIMUM_RECOMMENDED			(0x10)
 #define HUEDIFF_EXPONENT_DIVISOR			(0x100)
 #define HUEDIFF_LINEAR_DENOMINATOR			(0x04)
-
-int deltaMinMax(int x, int y, int z)
-{
-	int min,max;
-	if (x<=y) {
-		if (x<=z) {
-			min=x;
-			if (y<=z)
-				max=z;
-			else
-				max=y;
-		} else {
-			min=z;
-			max=y;
-		}
-	}
-	else if (x<=z) {
-		max=z;
-		min=y;
-	}
-	else {
-		max=x;
-		if(y<=z)
-			min=y;
-		else
-			min=z;
-	}
-	return max-min;
-}
 
 // simple function to put a green dot on an image position
 void markPixel(unsigned int *pixels, unsigned int width, unsigned int height, unsigned int x, unsigned int y, unsigned int color, unsigned int size) {

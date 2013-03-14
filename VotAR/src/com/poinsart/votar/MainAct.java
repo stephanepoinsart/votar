@@ -205,87 +205,17 @@ public class MainAct extends Activity {
 		});
 	}
 	
-	private void RGBtoHSV(int[] pixels, float h[], float s[], float v[]) {
-		// code based on the very good :
-		// http://www.f4.fhtw-berlin.de/~barthel/ImageJ/ColorInspector//HTMLHelp/farbraumJava.htm
-		// modified to be iterative
 
-		int min;    //Min. value of RGB
-		int max;    //Max. value of RGB
-		int delMax; //Delta RGB value
-
-		int i;
-		for (i=0; i<pixels.length; i++) {
-			int rgb=pixels[i];
-			int r = (rgb >> 16) & 0x000000FF;
-			int g = (rgb >> 8)  & 0x000000FF;
-			int b = rgb         & 0x000000FF;
-			if (r > g) { min = g; max = r; }
-			else { min = r; max = g; }
-			if (b > max) max = b;
-			if (b < min) min = b;
-
-			delMax = max - min;
-
-			float H = 0, S;
-			float V = max;
-
-			if ( delMax == 0 ) { H = 0; S = 0; }
-			else {
-				S = delMax/255f;
-				if ( r == max )
-					H = (      (g - b)/(float)delMax)*60;
-				else if ( g == max )
-					H = ( 2 +  (b - r)/(float)delMax)*60;
-				else if ( b == max )
-					H = ( 4 +  (r - g)/(float)delMax)*60;
-			}
-
-			h[i] = H/360;
-			s[i] = S;
-			v[i] = V;
-		}
-	}
 	
-	// debug singlechannel value to bitmap
-	//@SuppressWarnings("unused")
-	private void createSinglechannelBitmap(int[] out, float[] in) {
-		int i;
-		assert(out.length==in.length);
-		int pixelcount=out.length;
-		//int[] out=new int[pixelcount];
-		for (i=0; i<pixelcount ; i++) {
-			// single byte expanded to aRGB int 
-			int sb=(int)(in[i]*255);
-			out[i]=0xFF000000+((sb&0x0ff)<<16)|((sb&0x0ff)<<8)|(sb&0x0ff);
-		}
-	}
-	
+
 //	public native int nativeAnalyze(int[] pixels, int width, int height);
 	public native int nativeAnalyze(Bitmap b);
 
 	protected void analyze(Bitmap photo) {
-/*		int width=photo.getWidth();
-		int height=photo.getHeight();
-		int pixelcount=width*height;*/
-		//int[] pixels=new int[pixelcount];
-//		float[] h=new float[pixelcount];
-//		float[] s=new float[pixelcount];
-//		float[] v=new float[pixelcount]; // 0=white, 1=black ?
-		
-//		photo.getPixels(pixels, 0, width, 0, 0, width, height);
-//		photo.recycle();
-//		photo=null;
-//		nativeAnalyze(pixels, width, height);
+
 		nativeAnalyze(photo);
-//		RGBtoHSV(pixels, h, s, v);
-//		
-		// <debug>
-//		createSinglechannelBitmap(pixels, h);
-//		photo=Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-//		photo.setPixels(pixels, 0, width, 0, 0, width, height);
+
 		imageView.setImageBitmap(photo);
-		// </debug>
 	}
 	
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
