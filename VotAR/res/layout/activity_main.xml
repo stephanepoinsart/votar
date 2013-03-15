@@ -1,8 +1,11 @@
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/LinearLayout1"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0099cc"
+    android:background="#000000"
+    android:orientation="horizontal"
+    android:baselineAligned="false"
     tools:context=".MainAct" >
 
     <!--
@@ -11,49 +14,134 @@
          TextureView, etc.
     -->
 
+
     <!--
          This FrameLayout insets its children based on system windows using
          android:fitsSystemWindows.
     -->
 
-    <ImageView
-        android:id="@+id/imageView"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:contentDescription="@string/photo_of_the_audience"
-        android:src="@color/black_overlay" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_weight="16"
+            android:gravity="left"
+            android:orientation="vertical" >
 
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fitsSystemWindows="true" >
+            <ImageView
+                android:id="@+id/imageView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/photo_of_the_audience"
+                android:cropToPadding="true"
+                android:gravity="left"
+                android:scaleType="fitCenter"
+                android:src="@drawable/square1" />
+
+        </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/fullscreen_content_controls"
-            style="?buttonBarStyle"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|fill_horizontal"
-            android:background="@color/black_overlay"
-            android:orientation="horizontal"
-            tools:ignore="UselessParent" >
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_margin="3dp"
+            android:layout_weight="1"
+            android:orientation="vertical" >
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" >
+
+                <TextView
+                    android:id="@+id/label_a"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/vote_a" />
+
+                <ProgressBar
+                    android:id="@+id/bar_a"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="5dp"
+                    android:max="100"
+                    android:progress="50"
+                    android:progressDrawable="@drawable/bar_a" />
+
+                <TextView
+                    android:id="@+id/label_b"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/vote_b" />
+
+                <ProgressBar
+                    android:id="@+id/bar_b"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="5dp"
+                    android:max="100"
+                    android:progress="10"
+                    android:progressDrawable="@drawable/bar_b" />
+
+                <TextView
+                    android:id="@+id/label_c"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/vote_c" />
+
+                <ProgressBar
+                    android:id="@+id/bar_c"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="5dp"
+                    android:max="100"
+                    android:progress="30"
+                    android:progressDrawable="@drawable/bar_c" />
+
+                <TextView
+                    android:id="@+id/label_d"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top"
+                    android:text="@string/vote_d" />
+
+                <ProgressBar
+                    android:id="@+id/bar_d"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:max="100"
+                    android:progress="75"
+                    android:progressDrawable="@drawable/bar_d" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/fullscreen_content_controls"
+                style="?buttonBarStyle"
+                android:layout_width="fill_parent"
+                android:layout_height="match_parent"
+                android:background="@color/black_overlay"
+                android:gravity="bottom"
+                android:orientation="vertical"
+                tools:ignore="UselessParent" >
 
                 <Button
                     android:id="@+id/buttonCamera"
-                    style="?buttonBarButtonStyle"
-                    android:layout_width="wrap_content"
+                    style="android:buttonStyle"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/camera" />
 
                 <Button
                     android:id="@+id/buttonGallery"
-                    style="?buttonBarButtonStyle"
-                    android:layout_width="wrap_content"
+                    style="android:buttonStyle"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/gallery" />
+            </LinearLayout>
 
         </LinearLayout>
 
-    </FrameLayout>
-
-</FrameLayout>
+</LinearLayout>

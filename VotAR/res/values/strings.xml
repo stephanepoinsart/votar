@@ -7,5 +7,9 @@
     <string name="photo_of_the_audience">Photo of the audience</string>
     <string name="gallery">Gallery</string>
     <string name="camera">Camera</string>
+    <string name="vote_a">a</string>
+    <string name="vote_b">b</string>
+    <string name="vote_c">c</string>
+    <string name="vote_d">d</string>
 
 </resources>
