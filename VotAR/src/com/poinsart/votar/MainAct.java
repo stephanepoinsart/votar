@@ -78,15 +78,14 @@ public class MainAct extends Activity {
 	private static final int CAMERA_REQUEST=1;
 	private static final int GALLERY_REQUEST=2;
 	private ImageView imageView;
-	private ProgressBar bar[];
-	private TextView barLabel[];
-
+	private ProgressBar bar[]= {null, null, null, null};
+	private TextView barLabel[]={null, null, null, null};
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		this.requestWindowFeature(Window.FEATURE_NO_TITLE);
 	    System.loadLibrary("VotAR");
 	    super.onCreate(savedInstanceState);
-
 		setContentView(R.layout.activity_main);
 		
 		imageView = (ImageView) findViewById(R.id.imageView);
@@ -123,19 +122,29 @@ public class MainAct extends Activity {
 		});
 	}
 	
-
-	
-
-//	public native int nativeAnalyze(int[] pixels, int width, int height);
-	public native int nativeAnalyze(Bitmap b);
+	// found in native code, check jni exports
+	public native int[] nativeAnalyze(Bitmap b);
 
 	protected void analyze(Bitmap photo) {
+		int[] count=nativeAnalyze(photo);
+		
+		// nativeAnalyze returns null if anything goes wrong, just silently ignore
+		if (count!=null) {
+			int max=0;
+			for (int i=0; i<4; i++) {
+				if (count[i]>max)
+					max=count[i];
+				barLabel[i].setText(new String(Character.toChars(97+i))+": "+count[i]);
+			}
+			for (int i=0; i<4; i++) {
+				bar[i].setMax(max);
+				bar[i].setProgress(count[i]);
+			}
 
-		nativeAnalyze(photo);
-
-		imageView.setImageBitmap(photo);
+			imageView.setImageBitmap(photo);
+		}
 	}
-	
+
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		super.onActivityResult(requestCode, resultCode, data);
 		Bitmap photo=null;

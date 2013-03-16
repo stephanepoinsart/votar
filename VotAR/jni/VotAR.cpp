@@ -20,6 +20,35 @@
 
 extern "C" {
 
+
+
+#define PIXEL_STEP_TO_CENTER				5
+
+#define AVERAGE_DIFFERENCE_ALLOWED			(0xB8)
+
+#define SATURATION_NOMINATOR				(0x800)
+#define SATURATION_V_OFFSET					(0x10)
+#define SATURATION_H_OFFSET					(0x01)
+
+
+
+#define HUEDIFF_MINIMUM_RECOMMENDED			(0x10)
+#define HUEDIFF_EXPONENT_DIVISOR			(0x100)
+#define HUEDIFF_LINEAR_DENOMINATOR			(0x04)
+
+#define ALGO_STATS
+
+#ifdef ALGO_STATS
+int algo_stats_hues[4];
+int algo_stats_sat[4];
+int algo_stats_mindiff, algo_stats_minpr;
+#endif
+
+
+
+
+int prcount[4]={0,0,0,0};
+
 float startTime;
 
 
@@ -98,30 +127,12 @@ unsigned int *generateWorkingImage(unsigned int *inpixels, unsigned int width, u
 }
 
 
-#define PIXEL_STEP_TO_CENTER				5
-
-// we would tolerate for a good square :
-//   + component  : 0x20
-//   + saturation : 0x20
-// * 4 (for each subsquare)
-// = 0x80
-#define AVERAGE_DIFFERENCE_ALLOWED			(0xB8)
-
-#define SATURATION_NOMINATOR				(0x800)
-#define SATURATION_V_OFFSET					(0x10)
-#define SATURATION_H_OFFSET					(0x01)
-
-
-
-#define HUEDIFF_MINIMUM_RECOMMENDED			(0x10)
-#define HUEDIFF_EXPONENT_DIVISOR			(0x100)
-#define HUEDIFF_LINEAR_DENOMINATOR			(0x04)
 
 // simple function to put a green dot on an image position
 void markPixel(unsigned int *pixels, unsigned int width, unsigned int height, unsigned int x, unsigned int y, unsigned int color, unsigned int size) {
 	int pixelcount=width*height;
 	for (int j=y-size; j<y+size; j++)
-		for (int i=x-size; i<x+size; i++) {
+		for (int i=max(x-size,0); i<min(x+size, width); i++) {
 			int pixelindex=i+j*width;
 			// make sure no memory overflow in this loop (the mark can be close to top/bottom edge and radius bigger than PIXEL_STEP_TO_CENTER)
 			if (pixelindex>=0 && pixelindex<pixelcount)
@@ -129,13 +140,7 @@ void markPixel(unsigned int *pixels, unsigned int width, unsigned int height, un
 		}
 }
 
-#define ALGO_STATS
 
-#ifdef ALGO_STATS
-int algo_stats_hues[4];
-int algo_stats_sat[4];
-int algo_stats_mindiff, algo_stats_minpr;
-#endif
 
 
 /*
@@ -176,7 +181,7 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 	switch (cindex) {
 	case 0 :
 		// yellow,
-		// r and g are strong, b is weak
+		// r and  g are strong, b is weak
 
 
 		// first, outcast anything where b is not the weakest color
@@ -227,8 +232,8 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 			huediff=abs(r-g)*0x100/(r+g+1);
 
 		// manual adjustment: blue is a single component color
-		// and has been found to be much darker in photos experiments, giving it less contrast
-		// so we give it a noticeable boost in contrast
+		// and has been found to be much darker in photo experiments
+		// so we give it a noticeable boost in contrast to compensate
 		rsat=b-min(r,g)+5;
 		break;
 	}
@@ -344,7 +349,7 @@ int findOnePattern(unsigned int *workpixels, unsigned int width, unsigned int he
 
 
 
-int findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned int width, unsigned int height) {
+void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned int width, unsigned int height) {
 	// the fun part start here... bruteforce every position
 	//          i=
 	//        5 7 9
@@ -352,21 +357,19 @@ int findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned i
 	// j=7 -> . . .  -> . . . -> . . . -> + . .
 	// j=9 -> . . .     . . .    . . .    . . .
 
-	int prcount[4]={0,0,0,0};
 	for (int j=PIXEL_STEP_TO_CENTER; j<height-PIXEL_STEP_TO_CENTER; j+=2) {
 		for (int i=PIXEL_STEP_TO_CENTER; i<width-PIXEL_STEP_TO_CENTER; i+=2) {
 			//markPixel(inpixels,width, height, i, j);
 			int pr=findOnePattern(workpixels, width, height, i,j,inpixels);
 			if (pr>=0) {
 				prcount[pr]++;
-				markPixel(inpixels,width, height, i, j,0xFF00FF00,3+width/512);
+				markPixel(inpixels,width, height, i, j,0xFF00FF00,3+width/256);
 				// also burn the workpixels to make sure we do not count the same square 2 times
 				markPixel(workpixels,width, height, i, j,0x00000000,7+width/1024);
 			}
 		}
 	}
 	Log_i("found patterns... 1: %d | 2: %d | 3: %d | 4: %d ", prcount[0], prcount[1], prcount[2], prcount[3]);
-	return -1;
 }
 
 
@@ -374,21 +377,23 @@ int findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned i
 
 
 
-JNIEXPORT jint JNICALL Java_com_poinsart_votar_MainAct_nativeAnalyze(JNIEnv *env, jclass reserved, jobject bitmap)
+JNIEXPORT jintArray JNICALL Java_com_poinsart_votar_MainAct_nativeAnalyze(JNIEnv *env, jclass reserved, jobject bitmap)
 {
 	AndroidBitmapInfo info;
 	unsigned int *pixels, *workpixels;
 	unsigned int width, height, pixelcount;
 
-
 	Log_i("Now in nativeAnalyze code");
 	benchmarkStart();
 
+	for (int i=0; i<4; i++) {
+		prcount[i]=0;
+	}
 
 
 	if (AndroidBitmap_getInfo(env, bitmap, &info) < 0) {
 		Log_e("Failed to get Bitmap info");
-		return -1;
+		return NULL;
 	}
 	width=info.width;
 	height=info.height;
@@ -397,23 +402,30 @@ JNIEXPORT jint JNICALL Java_com_poinsart_votar_MainAct_nativeAnalyze(JNIEnv *env
 
 	if (info.format != ANDROID_BITMAP_FORMAT_RGBA_8888) {
 		Log_e("Incompatible Bitmap format");
-		return -1;
+		return NULL;
 	}
 
 	void** voidpointer=(void**) &pixels;
 	if (AndroidBitmap_lockPixels(env, bitmap, voidpointer) < 0) {
 		Log_e("Failed to lock the pixels of the Bitmap");
-		return -1;
+		return NULL;
 	}
 
 	benchmarkElapsed("various initialization stuff");
 	workpixels=generateWorkingImage(pixels, width, height);
 	if (!workpixels)
-		return -1;
+		return NULL;
 
 	findAllPatterns(pixels,workpixels,width, height);
 	benchmarkElapsed("findAllPatterns");
 	free(workpixels);
+
+
+	jint jprcount[4];
+	for (int i=0; i<4; i++)
+		jprcount[i]=prcount[i];
+	jintArray result = env->NewIntArray(4);
+	env->SetIntArrayRegion(result,0,4,jprcount);
 
 	//for (int i=0;i<(pixelcount/4);i++) {
 	//	pixels[i]=0xFFFF0000;
@@ -421,9 +433,9 @@ JNIEXPORT jint JNICALL Java_com_poinsart_votar_MainAct_nativeAnalyze(JNIEnv *env
 
 	if(AndroidBitmap_unlockPixels(env, bitmap) < 0) {
 		Log_e("Failed to unlock the pixels of the Bitmap");
-		return -1;
+		return NULL;
 	}
 
-	return 0;
+	return result;
 }
 }

@@ -8,7 +8,7 @@ LOCAL_MODULE    := VotAR
 LOCAL_SRC_FILES := VotAR.cpp
 LOCAL_LDLIBS := -llog -ljnigraphics
 
-LOCAL_FLAGS := -g -O0
+LOCAL_FLAGS := -g -O2
 
 LOCAL_CPPFLAGS := -std=c++0x
 
