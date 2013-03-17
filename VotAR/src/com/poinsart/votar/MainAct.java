@@ -10,16 +10,21 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.text.Layout;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.LinearLayout.LayoutParams;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.GradientDrawable.Orientation;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
@@ -35,6 +40,80 @@ public class MainAct extends Activity {
 	private String lastImageFilePath=null;
 
 	/** Create a file Uri for saving an image or video */
+
+	/**
+	 * The instance of the {@link SystemUiHider} for this activity.
+	 */
+	private static final int CAMERA_REQUEST=1;
+	private static final int GALLERY_REQUEST=2;
+	private ImageView imageView;
+	private ProgressBar bar[]= {null, null, null, null};
+	private TextView barLabel[]={null, null, null, null};
+	private LinearLayout mainLayout, controlLayout, imageLayout;
+	
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		this.requestWindowFeature(Window.FEATURE_NO_TITLE);
+	    System.loadLibrary("VotAR");
+	    super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_main);
+		
+		imageView = (ImageView) findViewById(R.id.imageView);
+		bar[0]=(ProgressBar) findViewById(R.id.bar_a);
+		bar[1]=(ProgressBar) findViewById(R.id.bar_b);
+		bar[2]=(ProgressBar) findViewById(R.id.bar_c);
+		bar[3]=(ProgressBar) findViewById(R.id.bar_d);
+		
+		barLabel[0]=(TextView) findViewById(R.id.label_a);
+		barLabel[1]=(TextView) findViewById(R.id.label_b);
+		barLabel[2]=(TextView) findViewById(R.id.label_c);
+		barLabel[3]=(TextView) findViewById(R.id.label_d);
+		
+		mainLayout=((LinearLayout)findViewById(R.id.mainLayout));
+		controlLayout=((LinearLayout)findViewById(R.id.controlLayout));
+		imageLayout=((LinearLayout)findViewById(R.id.imageLayout));
+		
+		adjustLayoutForOrientation(getResources().getConfiguration().orientation);
+
+		findViewById(R.id.buttonCamera).setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				Intent cameraIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+
+			    cameraFileUri = getOutputMediaFileUri(MEDIA_TYPE_IMAGE); // create a file to save the image
+			    cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraFileUri); // set the image file name
+
+				startActivityForResult(cameraIntent, CAMERA_REQUEST);
+			}
+		});
+		findViewById(R.id.buttonGallery).setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				Intent intent = new Intent();
+				intent.setType("image/*");
+				intent.setAction(Intent.ACTION_GET_CONTENT);
+				startActivityForResult(Intent.createChooser(intent, "Select Picture"), GALLERY_REQUEST);
+			}
+		});
+	}
+	
+	private void adjustLayoutForOrientation(int orientation) {
+		if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+			mainLayout.setOrientation(LinearLayout.HORIZONTAL);
+			controlLayout.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT,LayoutParams.MATCH_PARENT,1));
+			imageLayout.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT,1));
+		} else if (orientation == Configuration.ORIENTATION_PORTRAIT){
+			mainLayout.setOrientation(LinearLayout.VERTICAL);
+			controlLayout.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT,1));
+			imageLayout.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT,LayoutParams.WRAP_CONTENT,1));
+		}
+	}
+
+	public void onConfigurationChanged(Configuration newConfig) {
+		super.onConfigurationChanged(newConfig);
+		adjustLayoutForOrientation(newConfig.orientation);
+	}
+
 	private static Uri getOutputMediaFileUri(int type){
 	      return Uri.fromFile(getOutputMediaFile(type));
 	}
@@ -72,55 +151,6 @@ public class MainAct extends Activity {
 	    return mediaFile;
 	}
 
-	/**
-	 * The instance of the {@link SystemUiHider} for this activity.
-	 */
-	private static final int CAMERA_REQUEST=1;
-	private static final int GALLERY_REQUEST=2;
-	private ImageView imageView;
-	private ProgressBar bar[]= {null, null, null, null};
-	private TextView barLabel[]={null, null, null, null};
-	
-	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		this.requestWindowFeature(Window.FEATURE_NO_TITLE);
-	    System.loadLibrary("VotAR");
-	    super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_main);
-		
-		imageView = (ImageView) findViewById(R.id.imageView);
-		bar[0]=(ProgressBar) findViewById(R.id.bar_a);
-		bar[1]=(ProgressBar) findViewById(R.id.bar_b);
-		bar[2]=(ProgressBar) findViewById(R.id.bar_c);
-		bar[3]=(ProgressBar) findViewById(R.id.bar_d);
-		
-		barLabel[0]=(TextView) findViewById(R.id.label_a);
-		barLabel[1]=(TextView) findViewById(R.id.label_b);
-		barLabel[2]=(TextView) findViewById(R.id.label_c);
-		barLabel[3]=(TextView) findViewById(R.id.label_d);
-		
-
-		findViewById(R.id.buttonCamera).setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View v) {
-				Intent cameraIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
-
-			    cameraFileUri = getOutputMediaFileUri(MEDIA_TYPE_IMAGE); // create a file to save the image
-			    cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraFileUri); // set the image file name
-
-				startActivityForResult(cameraIntent, CAMERA_REQUEST);
-			}
-		});
-		findViewById(R.id.buttonGallery).setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View v) {
-				Intent intent = new Intent();
-				intent.setType("image/*");
-				intent.setAction(Intent.ACTION_GET_CONTENT);
-				startActivityForResult(Intent.createChooser(intent, "Select Picture"), GALLERY_REQUEST);
-			}
-		});
-	}
 	
 	// found in native code, check jni exports
 	public native int[] nativeAnalyze(Bitmap b);

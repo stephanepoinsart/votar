@@ -20,8 +20,6 @@
 
 extern "C" {
 
-
-
 #define PIXEL_STEP_TO_CENTER				5
 
 #define AVERAGE_DIFFERENCE_ALLOWED			(0xB8)
@@ -127,19 +125,16 @@ unsigned int *generateWorkingImage(unsigned int *inpixels, unsigned int width, u
 }
 
 
-
-// simple function to put a green dot on an image position
+// simple function to put a dot on an image position
 void markPixel(unsigned int *pixels, unsigned int width, unsigned int height, unsigned int x, unsigned int y, unsigned int color, unsigned int size) {
-	int pixelcount=width*height;
-	for (int j=y-size; j<y+size; j++)
-		for (int i=max(x-size,0); i<min(x+size, width); i++) {
-			int pixelindex=i+j*width;
-			// make sure no memory overflow in this loop (the mark can be close to top/bottom edge and radius bigger than PIXEL_STEP_TO_CENTER)
-			if (pixelindex>=0 && pixelindex<pixelcount)
-				pixels[pixelindex]=color;
-		}
-}
+	// make sure no memory overflow in this loop (the mark can be close to top/bottom edge and radius bigger than PIXEL_STEP_TO_CENTER)
 
+	// no vertical bleed
+	for (int j=max(y-size,0); j<min(y+size, height); j++)
+		//no horizontal bleed
+		for (int i=max(x-size,0); i<min(x+size, width); i++)
+			pixels[i+j*width]=color;
+}
 
 
 
@@ -373,10 +368,6 @@ void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned 
 }
 
 
-
-
-
-
 JNIEXPORT jintArray JNICALL Java_com_poinsart_votar_MainAct_nativeAnalyze(JNIEnv *env, jclass reserved, jobject bitmap)
 {
 	AndroidBitmapInfo info;
@@ -424,12 +415,9 @@ JNIEXPORT jintArray JNICALL Java_com_poinsart_votar_MainAct_nativeAnalyze(JNIEnv
 	jint jprcount[4];
 	for (int i=0; i<4; i++)
 		jprcount[i]=prcount[i];
+
 	jintArray result = env->NewIntArray(4);
 	env->SetIntArrayRegion(result,0,4,jprcount);
-
-	//for (int i=0;i<(pixelcount/4);i++) {
-	//	pixels[i]=0xFFFF0000;
-	//}
 
 	if(AndroidBitmap_unlockPixels(env, bitmap) < 0) {
 		Log_e("Failed to unlock the pixels of the Bitmap");
