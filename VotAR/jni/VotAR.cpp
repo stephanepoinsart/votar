@@ -24,15 +24,13 @@ extern "C" {
 
 #define AVERAGE_DIFFERENCE_ALLOWED			(0xB8)
 
-#define SATURATION_NOMINATOR				(0x800)
-#define SATURATION_V_OFFSET					(0x10)
+#define SATURATION_NOMINATOR				(0x400)
+#define SATURATION_V_OFFSET					(0x05)
 #define SATURATION_H_OFFSET					(0x01)
 
 
 
-#define HUEDIFF_MINIMUM_RECOMMENDED			(0x10)
-#define HUEDIFF_EXPONENT_DIVISOR			(0x100)
-#define HUEDIFF_LINEAR_DENOMINATOR			(0x04)
+#define HUEDIFF_LINEAR_MULT					(0x03)
 
 #define ALGO_STATS
 
@@ -151,11 +149,11 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 			{0x00,0x00,0xFF},		// blue
 		};*/
 
-	// maths : https://www.desmos.com/calculator/k8ihlpeo89
+	// maths : https://www.desmos.com/calculator/b0g1wkqyju
 
 	// we skip burned pixels
 	if (!(c & 0xFF000000))
-		return AVERAGE_DIFFERENCE_ALLOWED*2;
+		return AVERAGE_DIFFERENCE_ALLOWED*3;
 
 	// color components
 	int		r = (int)(c & 0x000000FF),
@@ -167,9 +165,8 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 	int diff=0;
 
 	// relative saturation, allow negative values (if we have the opposite hue)
-	int rsat=0;
+	int sat=0;
 	// absolute saturation
-//	int sat=deltaMinMax(r,g,b);
 	int huediff;
 
 
@@ -180,64 +177,92 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 
 
 		// first, outcast anything where b is not the weakest color
-		// which means dead square
+		// which means dead square (completely wrong hue) and we stop here
 		//
-		// if not, we have something like :
+		// to check saturation, we calculate stronger - weaker (and get an absolute value 0 <= sat <= 0xFF
+		//
+		// to check for more moderate hue difference
 		// 0     n      n'    255
 		// .. b .... g .... r ..
+		//    r-g/g-b/sat        (with r-b being saturation)
+		//
 		//     or
 		// .. b .... r .... g ..
-		// are g and r close together or one of them is close to b ?
-		if (b>r || b>g)
-			huediff=0x400;
-		else
-			huediff=abs(r-g)*0x100/(r+g+1);
+		//
+		// what we want with hue check is : are g and r close together or one of them is close to b ?
+		// raw huediff = 0 : very close
+		if (b>=r || b>=g)
+			return 0x400;
 
 		// we assume one of the strong component > weak to calculate a relative saturation
 		// if it's not the case, we have a "negative" saturation, which is mean it has a completely reversed hue
-		rsat=max(r,g)-b;
+		if (r>g) {
+			sat=r-b;
+			huediff=(r-g) * HUEDIFF_LINEAR_MULT/(g-b+1);
+		} else {
+			sat=g-b;
+			huediff=(g-r) * HUEDIFF_LINEAR_MULT/(r-b+1);
+		}
+		huediff=huediff*0x100/sat;
 
 		break;
 	case 1 :
 		// cyan,
 		// g and b are strong, r is weak
-		if (r>g || r>b)
-			huediff=0x400;
-		else
-			huediff=abs(g-b)*0x100/(g+b+1);
-		rsat=max(g,b)-r;
+		if (r>=g || r>=b)
+			return 0x400;
+
+		if (g>b) {
+			sat=g-r;
+			huediff=(g-b) * HUEDIFF_LINEAR_MULT/(b-r);
+		} else {
+			sat=b-r;
+			huediff=(b-g) * HUEDIFF_LINEAR_MULT/(g-r);
+		}
+		huediff=huediff*0x100/sat;
 
 		break;
 	case 2 :
 		// magenta,
 		// r and b are strong, g is weak
-		if (g>r || g>b)
-			huediff=0x400;
-		else
-			huediff=abs(r-b)*0x100/(r+b+1);
-		rsat=max(r,b)-g;
+		if (g>=r || g>=b)
+			return 0x400;
+
+		if (r>b) {
+			sat=r-g;
+			huediff=(r-b) * HUEDIFF_LINEAR_MULT/(b-g);
+		} else {
+			sat=b-g;
+			huediff=(b-r) * HUEDIFF_LINEAR_MULT/(r-g);
+		}
+		huediff=huediff*0x100/sat;
 
 		break;
 	case 3 :
 		// blue,
 		// r and g are weak, b is strong
-		if (b<r || b<g)
-			huediff=0x400;
-		else
-			huediff=abs(r-g)*0x100/(r+g+1);
+		if (b<=r || b<=g)
+			return 0x400;
+		sat=b-min(r,g);
+		if (r>g) {
+			sat=b-g;
+			huediff=(r-g) * HUEDIFF_LINEAR_MULT/(b-r);
+		} else {
+			sat=b-r;
+			huediff=(g-r) * HUEDIFF_LINEAR_MULT/(b-g);
+		}
+		sat+=4;
+
+		huediff=huediff*0x100/sat;
 
 		// manual adjustment: blue is a single component color
 		// and has been found to be much darker in photo experiments
 		// so we give it a noticeable boost in contrast to compensate
-		rsat=b-min(r,g)+5;
 		break;
 	}
-	huediff-=HUEDIFF_MINIMUM_RECOMMENDED;
-	if (huediff>0) {
-		diff+=(huediff*huediff/HUEDIFF_EXPONENT_DIVISOR)+(huediff/HUEDIFF_LINEAR_DENOMINATOR);
-	}
+	diff+=huediff;
 #ifdef ALGO_STATS
-	algo_stats_hues[cindex]=diff;
+	algo_stats_hues[cindex]=huediff;
 #endif
 
 	// adjusted 1/sat curve :
@@ -245,18 +270,18 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 	// very low sat = high penalize much
 	// low, medium sat = penalize very little (to still work in dark rooms
 	// high sat = don't penalize, might give a small bonus
-	if (rsat>=0) {
+	if (sat>=0) {
 		// a quite soft exponential curve for low values : x * x / 0x80
 //old formula :		diff+=(rsat*rsat/SATURATION_EXPONENT_DIVISOR) + (rsat/SATURATION_LINEAR_DIVISOR);
-		diff+=SATURATION_NOMINATOR/(rsat+SATURATION_H_OFFSET)-SATURATION_V_OFFSET;
+		diff+=SATURATION_NOMINATOR/(sat+SATURATION_H_OFFSET)-SATURATION_V_OFFSET;
 	} else {
-		diff+=AVERAGE_DIFFERENCE_ALLOWED;
+		diff+=AVERAGE_DIFFERENCE_ALLOWED*2;
 	}
 #ifdef ALGO_STATS
-	if (rsat>0) {
-		algo_stats_sat[cindex]=SATURATION_NOMINATOR/(rsat+SATURATION_H_OFFSET)-SATURATION_V_OFFSET;
+	if (sat>0) {
+		algo_stats_sat[cindex]=SATURATION_NOMINATOR/(sat+SATURATION_H_OFFSET)-SATURATION_V_OFFSET;
 	} else {
-		algo_stats_sat[cindex]=AVERAGE_DIFFERENCE_ALLOWED;
+		algo_stats_sat[cindex]=AVERAGE_DIFFERENCE_ALLOWED*2;
 	}
 #endif
 
@@ -313,7 +338,7 @@ int findOnePattern(unsigned int *workpixels, unsigned int width, unsigned int he
 			diff+=checkSquare(uc[(pr+i)%4], i);
 #ifndef ALGO_STATS
 			// if the color difference for all the subsquares is too big, it's over for this pattern rotation so don't waist time
-			if (diff>AVERAGE_DIFFERENCE_ALLOWED)
+			if (diff>AVERAGE_DIFFERENCE_ALLOWED+0x20)
 				break;
 #endif
 

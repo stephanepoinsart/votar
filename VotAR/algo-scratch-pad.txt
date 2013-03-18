@@ -24,10 +24,9 @@ diff6 = 60/230 = 0.26       ******************* when the color is too bright, we
 80 | 30 | 10 ... 120
 diff7 = 
 
-second formula:
---------------------------
-(strong1+weak-strong2+weak) / 
 
+if the primary component is not the one supposed to be, we just cut off the square, based on this method,
+we abandon completely the principle of a primary component formula. 
 
 
 
@@ -126,3 +125,16 @@ diff=diff*0x100
 
 
 <- this part is still up for discussion
+
+
+
+
+
+
+
+---------------------------
+x-50/200-x
+
+
+
+
