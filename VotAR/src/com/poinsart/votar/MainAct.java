@@ -209,6 +209,4 @@ public class MainAct extends Activity {
 			return;
 		analyze(photo);
 	}
-
-
 }

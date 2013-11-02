@@ -106,7 +106,6 @@ void average33(unsigned int *inpixels, unsigned int *outpixels,  unsigned int wi
 // combine many operation to get an easier to work on image :
 // - allocate memory for a new image
 // - average pixels in 3x3 squares into the new "working image"
-// - convert colorspaces (rgb2hsv)
 // - return the resulting image
 unsigned int *generateWorkingImage(unsigned int *inpixels, unsigned int width, unsigned int height) {
 	unsigned int pixelcount = width * height;
