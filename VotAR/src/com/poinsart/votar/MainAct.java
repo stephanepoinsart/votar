@@ -3,6 +3,8 @@ package com.poinsart.votar;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.concurrent.CountDownLatch;
+import java.lang.System;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -37,7 +39,8 @@ public class MainAct extends Activity {
 	public static final int MEDIA_TYPE_VIDEO = 2;
 
 	private Uri cameraFileUri;
-	private String lastImageFilePath=null;
+	public String lastImageFilePath=null;
+	public String lastPointsFilePath=null;
 
 	/** Create a file Uri for saving an image or video */
 
@@ -50,6 +53,10 @@ public class MainAct extends Activity {
 	private ProgressBar bar[]= {null, null, null, null};
 	private TextView barLabel[]={null, null, null, null};
 	private LinearLayout mainLayout, controlLayout, imageLayout;
+	
+	public CountDownLatch pictureLock;
+	public CountDownLatch pointsLock;
+	public long datatimestamp=Long.MIN_VALUE;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -153,26 +160,32 @@ public class MainAct extends Activity {
 
 	
 	// found in native code, check jni exports
-	public native int[] nativeAnalyze(Bitmap b);
+	public native Mark[] nativeAnalyze(Bitmap b, int[] prcount);
 
 	protected void analyze(Bitmap photo) {
-		int[] count=nativeAnalyze(photo);
+		int prcount[]=new int[4];
+		Mark mark[]=nativeAnalyze(photo, prcount);
+		pointsLock.countDown();
+		
+		// if (mark.length>0 && mark[0]!=null)
+		//		Log.d("VotAR analyze", "returning data to java, first mark: "+mark[0].x+"|"+mark[0].y+"|"+mark[0].pr+", mark count: "+mark.length);
 		
 		// nativeAnalyze returns null if anything goes wrong, just silently ignore
-		if (count!=null) {
+		if (prcount!=null && mark!=null) {
 			int max=0;
 			for (int i=0; i<4; i++) {
-				if (count[i]>max)
-					max=count[i];
-				barLabel[i].setText(new String(Character.toChars(97+i))+": "+count[i]);
+				if (prcount[i]>max)
+					max=prcount[i];
+				barLabel[i].setText(new String(Character.toChars(97+i))+": "+prcount[i]);
 			}
 			for (int i=0; i<4; i++) {
 				bar[i].setMax(max);
-				bar[i].setProgress(count[i]);
+				bar[i].setProgress(prcount[i]);
 			}
 
 			imageView.setImageBitmap(photo);
 		}
+
 	}
 
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -204,9 +217,17 @@ public class MainAct extends Activity {
 		
 		if (lastImageFilePath==null)
 			return;
+		
+		// data is being updated and not ready for HTTP service, lock them
+		pictureLock=new CountDownLatch(1);
+		pointsLock=new CountDownLatch(1);
+		datatimestamp=System.nanoTime();
+		
 		photo=BitmapFactory.decodeFile(lastImageFilePath, opt);
 		if (photo==null)
 			return;
+		
+		pictureLock.countDown();
 		analyze(photo);
 	}
 }

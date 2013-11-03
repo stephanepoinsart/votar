@@ -139,7 +139,7 @@ Usable networks :
 Data :
  - picture.jpg (high res, progressive)
  - points[]{x,y,index}
- - dataindex=-1
+ - datatimestamp=-inf
 
 
 app
@@ -149,7 +149,7 @@ prepare for server (write picture.jpg + points.json)
    * pointsURI=null
    * pictureLock.aquire()
    * pointsLock.aquire()
-   * dataindex++ in shared memory
+   * datatimestamp=nanotime() in shared memory
  - when picture.jpg is ready
    * save it, put pictureURI in shared memory
    * pictureLock.release()
@@ -166,10 +166,10 @@ reply to client request
 
 web browser (client) :
  - request from server
-   * dataindex=-1
-   * GET dataindex on /dataindex
+   * datatimestamp=-inf
+   * GET datatimestamp on /datatimestamp
    * if more recent :
-      * update dataindex value
+      * update datatimestamp value
       * GET /picture + draw pictures
       * GET /points + draw points + compute scores
 

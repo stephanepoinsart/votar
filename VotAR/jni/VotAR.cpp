@@ -20,6 +20,8 @@
 
 extern "C" {
 
+#define MAX_MARK_COUNT						512
+
 #define PIXEL_STEP_TO_CENTER				5
 
 #define AVERAGE_DIFFERENCE_ALLOWED			(0xB8)
@@ -352,9 +354,9 @@ int findOnePattern(unsigned int *workpixels, unsigned int width, unsigned int he
 						algo_stats_hues[0]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_hues[1]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_hues[2]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_hues[3]*100/AVERAGE_DIFFERENCE_ALLOWED,
 						algo_stats_sat[0]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_sat[1]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_sat[2]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_sat[3]*100/AVERAGE_DIFFERENCE_ALLOWED,
 						x,y);
-			if (diff>AVERAGE_DIFFERENCE_ALLOWED) {
+			/*if (diff>AVERAGE_DIFFERENCE_ALLOWED) {
 				markPixel(inpixels,width, height, x, y,0xFFFFFFFF,4);
-			}
+			}*/
 		}
 #endif
 
@@ -368,13 +370,15 @@ int findOnePattern(unsigned int *workpixels, unsigned int width, unsigned int he
 
 
 
-void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned int width, unsigned int height) {
+void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned int width, unsigned int height, int mark[MAX_MARK_COUNT][3], int *markcount) {
 	// the fun part start here... bruteforce every position
 	//          i=
 	//        5 7 9
 	// j=5 -> + . .     . + .    . . +    . . .
 	// j=7 -> . . .  -> . . . -> . . . -> + . .
 	// j=9 -> . . .     . . .    . . .    . . .
+
+	*markcount=0;
 
 	for (int j=PIXEL_STEP_TO_CENTER; j<height-PIXEL_STEP_TO_CENTER; j+=2) {
 		for (int i=PIXEL_STEP_TO_CENTER; i<width-PIXEL_STEP_TO_CENTER; i+=2) {
@@ -385,27 +389,40 @@ void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned 
 				markPixel(inpixels,width, height, i, j,0xFF00FF00,3+width/256);
 				// also burn the workpixels to make sure we do not count the same square 2 times
 				markPixel(workpixels,width, height, i, j,0x00000000,7+width/1024);
+				// x, y, z
+				mark[*markcount][0]=i;
+				mark[*markcount][1]=j;
+				mark[*markcount][2]=pr;
+				(*markcount)++;
+				if (*markcount>=MAX_MARK_COUNT) {
+					Log_i("unlikely event : pattern count match limit reached, stopping before the image is completely processed");
+					goto SkipFindAllPaternsLoop;
+				}
 			}
 		}
 	}
+	SkipFindAllPaternsLoop:
 	Log_i("found patterns... 1: %d | 2: %d | 3: %d | 4: %d ", prcount[0], prcount[1], prcount[2], prcount[3]);
 }
 
 
-JNIEXPORT jintArray JNICALL Java_com_poinsart_votar_MainAct_nativeAnalyze(JNIEnv *env, jclass reserved, jobject bitmap)
+JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_MainAct_nativeAnalyze(JNIEnv *env, jclass reserved, jobject bitmap, jintArray jprcount)
 {
 	AndroidBitmapInfo info;
 	unsigned int *pixels, *workpixels;
 	unsigned int width, height, pixelcount;
 
+	int mark[MAX_MARK_COUNT][3];
+	int markcount;
+	jboolean isCopy;
+
 	Log_i("Now in nativeAnalyze code");
 	benchmarkStart();
 
-	for (int i=0; i<4; i++) {
-		prcount[i]=0;
-	}
+	prcount[0]=prcount[1]=prcount[2]=prcount[3]=0;
 
-
+	/////////////////////////////
+	// initialize pixels array
 	if (AndroidBitmap_getInfo(env, bitmap, &info) < 0) {
 		Log_e("Failed to get Bitmap info");
 		return NULL;
@@ -426,28 +443,61 @@ JNIEXPORT jintArray JNICALL Java_com_poinsart_votar_MainAct_nativeAnalyze(JNIEnv
 		return NULL;
 	}
 
+
+	/////////////////////////////
+	// most of the magic happens here
 	benchmarkElapsed("various initialization stuff");
 	workpixels=generateWorkingImage(pixels, width, height);
 	if (!workpixels)
 		return NULL;
 
-	findAllPatterns(pixels,workpixels,width, height);
+	findAllPatterns(pixels,workpixels,width, height, mark, &markcount);
 	benchmarkElapsed("findAllPatterns");
 	free(workpixels);
-
-
-	jint jprcount[4];
-	for (int i=0; i<4; i++)
-		jprcount[i]=prcount[i];
-
-	jintArray result = env->NewIntArray(4);
-	env->SetIntArrayRegion(result,0,4,jprcount);
 
 	if(AndroidBitmap_unlockPixels(env, bitmap) < 0) {
 		Log_e("Failed to unlock the pixels of the Bitmap");
 		return NULL;
 	}
 
-	return result;
+
+	/////////////////////////////
+	// return prcount[4] to java through jprcount array argument
+	jint *eprcount=env->GetIntArrayElements(jprcount, &isCopy);
+	if (eprcount==NULL) {
+		Log_e("Internal Error: failed on GetIntArrayElements(jprcount, &isCopy) ");
+		return NULL;
+	}
+	eprcount[0]=prcount[0];
+	eprcount[1]=prcount[1];
+	eprcount[2]=prcount[2];
+	eprcount[3]=prcount[3];
+	env->ReleaseIntArrayElements(jprcount, eprcount, JNI_COMMIT);
+
+
+	/////////////////////////////
+	// return marks[] to java through jobject[] return value
+	jclass jmarkClass=env->FindClass("com/poinsart/votar/Mark");
+	if (jmarkClass==NULL) {
+		Log_e("Internal Error: failed to find java class com/poinsart/votar/Mark");
+		return NULL;
+	}
+
+	jmethodID jmarkConstructor=env->GetMethodID(jmarkClass, "<init>", "(III)V");
+	if (jmarkConstructor==NULL) {
+		Log_e("Internal Error: failed to find constructor for java class com/poinsart/votar/Mark");
+		return NULL;
+	}
+	jobjectArray jmarkArray=env->NewObjectArray(markcount, jmarkClass, NULL);
+	for (int i=0; i<markcount; i++) {
+		jobject jmarkCurrent=env->NewObject(jmarkClass, jmarkConstructor, mark[i][0], mark[i][1], mark[i][2]);
+		if (jmarkCurrent==NULL) {
+			Log_e("Internal Error: failed to create jmark object (out of memory ?)");
+			return NULL;
+		}
+		env->SetObjectArrayElement(jmarkArray, i, jmarkCurrent);
+	}
+
+	return jmarkArray;
 }
 }
