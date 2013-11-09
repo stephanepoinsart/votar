@@ -1,10 +1,15 @@
 package com.poinsart.votar;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.concurrent.CountDownLatch;
 import java.lang.System;
+
+import org.json.JSONArray;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -39,8 +44,8 @@ public class MainAct extends Activity {
 	public static final int MEDIA_TYPE_VIDEO = 2;
 
 	private Uri cameraFileUri;
-	public String lastImageFilePath=null;
-	public String lastPointsFilePath=null;
+	public String lastPhotoFilePath=null;
+	public String lastPointsJsonString=null;
 
 	/** Create a file Uri for saving an image or video */
 
@@ -54,9 +59,13 @@ public class MainAct extends Activity {
 	private TextView barLabel[]={null, null, null, null};
 	private LinearLayout mainLayout, controlLayout, imageLayout;
 	
-	public CountDownLatch pictureLock;
+	public CountDownLatch photoLock;
 	public CountDownLatch pointsLock;
-	public long datatimestamp=Long.MIN_VALUE;
+	
+	private static final long TIME_DIVIDE=100000;
+	public long datatimestamp=Long.MIN_VALUE/TIME_DIVIDE;
+	
+	private VotarWebServer votarwebserver;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -102,6 +111,19 @@ public class MainAct extends Activity {
 				startActivityForResult(Intent.createChooser(intent, "Select Picture"), GALLERY_REQUEST);
 			}
 		});
+		votarwebserver=new VotarWebServer(51285, this);
+		try {
+			votarwebserver.start();
+		} catch (IOException e) {
+			Log.w("Votar MainAct", "The webserver could not be started, remote display wont be available");
+		}
+	}
+	
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+		if (votarwebserver!=null)
+			votarwebserver.stop();
 	}
 	
 	private void adjustLayoutForOrientation(int orientation) {
@@ -139,7 +161,7 @@ public class MainAct extends Activity {
 	    // Create the storage directory if it does not exist
 	    if (! mediaStorageDir.exists()){
 	        if (! mediaStorageDir.mkdirs()){
-	            Log.d("VotAR camera", "failed to create directory");
+	            Log.w("VotAR camera", "failed to create directory");
 	            return null;
 	        }
 	    }
@@ -160,12 +182,11 @@ public class MainAct extends Activity {
 
 	
 	// found in native code, check jni exports
-	public native Mark[] nativeAnalyze(Bitmap b, int[] prcount);
+	public native Mark[] nativeAnalyze(Bitmap b, int prcount[]);
 
 	protected void analyze(Bitmap photo) {
 		int prcount[]=new int[4];
 		Mark mark[]=nativeAnalyze(photo, prcount);
-		pointsLock.countDown();
 		
 		// if (mark.length>0 && mark[0]!=null)
 		//		Log.d("VotAR analyze", "returning data to java, first mark: "+mark[0].x+"|"+mark[0].y+"|"+mark[0].pr+", mark count: "+mark.length);
@@ -183,9 +204,29 @@ public class MainAct extends Activity {
 				bar[i].setProgress(prcount[i]);
 			}
 
+			
 			imageView.setImageBitmap(photo);
 		}
+		
+		writeJsonPoints(mark);
+		
+		pointsLock.countDown();
 
+	}
+	
+	/*
+	 *  for now this just save the points into a json string,
+	 *  could use a file for more permanent storage
+	 */
+	private void writeJsonPoints(Mark mark[]) {
+		if (mark==null)
+			return;
+		JSONArray jsonmark=new JSONArray();
+		for (int i=0; i<mark.length; i++) {
+			JSONArray jsoncurrentmark=new JSONArray(Arrays.asList(new Integer[]{mark[i].x, mark[i].y, mark[i].pr}));
+			jsonmark.put(jsoncurrentmark);
+		}
+		lastPointsJsonString=jsonmark.toString();		
 	}
 
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -207,27 +248,29 @@ public class MainAct extends Activity {
 	        Cursor cursor = getContentResolver().query(uri, new String[] { android.provider.MediaStore.Images.ImageColumns.DATA }, null, null, null);
 	        cursor.moveToFirst();
 	        //Link to the image
-	        lastImageFilePath = cursor.getString(0);
+	        lastPhotoFilePath = cursor.getString(0);
 	        cursor.close();
 		}
 		if (requestCode == CAMERA_REQUEST) {
 	 		uri = cameraFileUri;
-	 		lastImageFilePath = uri.getPath();
+	 		lastPhotoFilePath = uri.getPath();
 		}
 		
-		if (lastImageFilePath==null)
+		if (lastPhotoFilePath==null)
 			return;
 		
-		// data is being updated and not ready for HTTP service, lock them
-		pictureLock=new CountDownLatch(1);
-		pointsLock=new CountDownLatch(1);
-		datatimestamp=System.nanoTime();
+		lastPointsJsonString=null;
 		
-		photo=BitmapFactory.decodeFile(lastImageFilePath, opt);
+		// data is being updated and not ready for HTTP service, lock them
+		photoLock=new CountDownLatch(1);
+		pointsLock=new CountDownLatch(1);
+		datatimestamp=System.nanoTime()/TIME_DIVIDE;
+		
+		photo=BitmapFactory.decodeFile(lastPhotoFilePath, opt);
 		if (photo==null)
 			return;
 		
-		pictureLock.countDown();
+		photoLock.countDown();
 		analyze(photo);
 	}
 }

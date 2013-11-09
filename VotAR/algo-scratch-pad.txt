@@ -159,8 +159,8 @@ prepare for server (write picture.jpg + points.json)
 
 server :
 reply to client request
- - /dataindex : return the dataindex
- - /picture : wait for pictureLock + send the file in pictureURI
+ - /datatimestamp : return the datatimestamp
+ - /photo : wait for photoLock + send the file in pictureURI
  - /points : wait for pointsLock + send the file in pointsURI
  - / : return the static client webpage
 
@@ -189,3 +189,5 @@ Web GUI :
 |                    | d: 15%
 ---------------------- ===
 
+
+storage of multiple results is not included in version 1
