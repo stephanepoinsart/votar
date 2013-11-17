@@ -3,6 +3,7 @@ package com.poinsart.votar;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
 
@@ -14,6 +15,8 @@ import fi.iki.elonen.NanoHTTPD;
 
 public class VotarWebServer extends NanoHTTPD {
 	private MainAct mainact;
+	
+	public static final int SOCKET_READ_TIMEOUT = 65000;
 
 	public VotarWebServer(int port, MainAct mainact) {
 		super(port);
@@ -33,12 +36,14 @@ public class VotarWebServer extends NanoHTTPD {
     	if (wi==null || wi.getNetworkId()==-1)
     		return null;
     	ip=wi.getIpAddress();
-    	return "" + ((ip >> 24 ) & 0xFF) + "." + ((ip >> 16) & 0xFF) + "." + ((ip >> 8) & 0xFF) + "." + (ip & 0xFF);
+    	return "" + (ip & 0xFF) + "." + ((ip >> 8) & 0xFF) + "." + ((ip >> 16) & 0xFF) + "." + ((ip >> 24 ) & 0xFF);
     }
 	
     private Response createResponse(Response.Status status, String mimeType, String message) {
         Response res = new Response(status, mimeType, message);
         res.addHeader("Access-Control-Allow-Origin", "*");
+        if (status!=Response.Status.OK)
+        	Log.w("Votar WebServer", message);
         return res;
     }
     
@@ -94,6 +99,24 @@ public class VotarWebServer extends NanoHTTPD {
 		}
 		if (uri.equals("/datatimestamp")) {
 			return createResponse(Response.Status.OK, NanoHTTPD.MIME_PLAINTEXT, ""+mainact.datatimestamp);
+		}
+		if (uri.equals("/") || uri.equals("/footer_deco.png") || uri.equals("/votar_logo.png")) {
+			String mime, filename;
+			if (uri.equals("/")) {
+				mime=NanoHTTPD.MIME_HTML;
+				filename="index.html";
+			} else {
+				mime="image/png";
+				filename=uri.substring(1);
+			}
+			InputStream is;
+			try {
+				is = mainact.assetMgr.open(filename);
+			} catch (IOException e) {
+				return createResponse(Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, "Error 500 (INTERNAL SERVER ERROR). The server failed while attempting to read the static file to deliver.");
+			}
+			return createResponse(Response.Status.OK, mime, is);
+			
 		}
 		return createResponse(Response.Status.NOT_FOUND, NanoHTTPD.MIME_PLAINTEXT, "Error 404 (NOT FOUND). I'm sorry. My responses are limited. You must ask the right questions.");
 	}

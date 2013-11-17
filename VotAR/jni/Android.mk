@@ -12,6 +12,6 @@ LOCAL_FLAGS := -g -O2
 
 LOCAL_CPPFLAGS := -std=c++0x
 
-APP_PLATFORM := android-9
+APP_PLATFORM := android-10
 
 include $(BUILD_SHARED_LIBRARY)

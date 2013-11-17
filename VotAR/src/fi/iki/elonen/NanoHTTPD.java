@@ -57,7 +57,7 @@ public abstract class NanoHTTPD {
      * This is required as the Keep-Alive HTTP connections would otherwise
      * block the socket reading thread forever (or as long the browser is open).
      */
-    public static final int SOCKET_READ_TIMEOUT = 5000;
+    public static final int SOCKET_READ_TIMEOUT = 55000;
     /**
      * Common mime type for dynamic content: plain text
      */
@@ -726,7 +726,8 @@ public abstract class NanoHTTPD {
 
     public static final class ResponseException extends Exception {
 
-        private final Response.Status status;
+		private static final long serialVersionUID = 6569838532917408380L;
+		private final Response.Status status;
 
         public ResponseException(Response.Status status, String message) {
             super(message);

@@ -16,13 +16,14 @@
 
 #define  LOG_TAG    "nativeAnalyze"
 #define  Log_i(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
+#define  Log_w(...)  __android_log_print(ANDROID_LOG_WARN,LOG_TAG,__VA_ARGS__)
 #define  Log_e(...)  __android_log_print(ANDROID_LOG_ERROR,LOG_TAG,__VA_ARGS__)
 
 extern "C" {
 
 #define MAX_MARK_COUNT						512
 
-#define PIXEL_STEP_TO_CENTER				5
+#define PIXEL_STEP_TO_CENTER				8
 
 #define AVERAGE_DIFFERENCE_ALLOWED			(0xB8)
 
@@ -82,7 +83,7 @@ void average33(unsigned int *inpixels, unsigned int *outpixels,  unsigned int wi
 	unsigned int pixelcount=width*height;
 	for (int i=width+1; i<pixelcount-width-1; i++) {
 		outpixels[i]= (
-					(((inpixels[i-1-width] & 0x00FF0000) + (inpixels[i-width] & 0x00FF0000) + (inpixels[i+1-width] & 0x00FF0000)	// Row -1, component 1
+					((((inpixels[i-1-width] & 0x00FF0000) + (inpixels[i-width] & 0x00FF0000) + (inpixels[i+1-width] & 0x00FF0000)	// Row -1, component 1
 					+ (inpixels[i-1]       & 0x00FF0000) + (inpixels[i]       & 0x00FF0000) + (inpixels[i+1]       & 0x00FF0000)	// Row  0, component 1
 					+ (inpixels[i-1+width] & 0x00FF0000) + (inpixels[i+width] & 0x00FF0000) + (inpixels[i+1+width] & 0x00FF0000))	// Row +1, component 1
 					/ 9) & 0x00FF0000)
@@ -97,8 +98,8 @@ void average33(unsigned int *inpixels, unsigned int *outpixels,  unsigned int wi
 					(((inpixels[i-1-width] & 0x000000FF) + (inpixels[i-width] & 0x000000FF) + (inpixels[i+1-width] & 0x000000FF)	// Row -1, component 3
 					+ (inpixels[i-1]       & 0x000000FF) + (inpixels[i]       & 0x000000FF) + (inpixels[i+1]       & 0x000000FF)	// Row  0, component 3
 					+ (inpixels[i-1+width] & 0x000000FF) + (inpixels[i+width] & 0x000000FF) + (inpixels[i+1+width] & 0x000000FF))	// Row +1, component 3
-					/ 9) & 0x000000FF)
-				| 0xFF000000;
+					/ 9) & 0x000000FF))
+				& 0x00FFFFFF;
 		;
 	}
 }
@@ -144,17 +145,13 @@ void markPixel(unsigned int *pixels, unsigned int width, unsigned int height, un
 inline int checkSquare(unsigned int c, unsigned int cindex) {
 /*	const static unsigned int rcc[4][3]={ // reference colors components clockwise
 		//    R    G    B
+			{0x00,0xFF,0x00},		// green
 			{0xFF,0xFF,0x00},		// yellow
 			{0x00,0xFF,0xFF},		// cyan
 			{0xFF,0x00,0xFF},		// magenta
-			{0x00,0x00,0xFF},		// blue
 		};*/
 
 	// maths : https://www.desmos.com/calculator/b0g1wkqyju
-
-	// we skip burned pixels
-	if (!(c & 0xFF000000))
-		return AVERAGE_DIFFERENCE_ALLOWED*3;
 
 	// color components
 	int		r = (int)(c & 0x000000FF),
@@ -172,7 +169,7 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 
 
 	switch (cindex) {
-	case 0 :
+	case 1 :
 		// yellow,
 		// r and  g are strong, b is weak
 
@@ -207,7 +204,7 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 		huediff=huediff*0x100/sat;
 
 		break;
-	case 1 :
+	case 2 :
 		// cyan,
 		// g and b are strong, r is weak
 		if (r>=g || r>=b)
@@ -223,7 +220,7 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 		huediff=huediff*0x100/sat;
 
 		break;
-	case 2 :
+	case 3 :
 		// magenta,
 		// r and b are strong, g is weak
 		if (g>=r || g>=b)
@@ -239,7 +236,23 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 		huediff=huediff*0x100/sat;
 
 		break;
-	case 3 :
+	case 0 :
+		// green,
+		// r and b are weak, g is strong
+		if (g<=r || g<=b)
+			return 0x400;
+		//sat=g-min(r,b);
+		if (r>b) {
+			sat=g-b;
+			huediff=(r-b) * HUEDIFF_LINEAR_MULT/(g-r);
+		} else {
+			sat=g-r;
+			huediff=(b-r) * HUEDIFF_LINEAR_MULT/(g-b);
+		}
+		//sat+=4;
+
+		huediff=huediff*0x100/sat;
+		/*
 		// blue,
 		// r and g are weak, b is strong
 		if (b<=r || b<=g)
@@ -255,6 +268,7 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 		sat+=4;
 
 		huediff=huediff*0x100/sat;
+		*/
 
 		// manual adjustment: blue is a single component color
 		// and has been found to be much darker in photo experiments
@@ -284,6 +298,7 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 	} else {
 		algo_stats_sat[cindex]=AVERAGE_DIFFERENCE_ALLOWED*2;
 	}
+//	Log_i("localdiff %d: %d",cindex,diff);
 #endif
 
 	return diff;
@@ -291,7 +306,7 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 
 int findOnePattern(unsigned int *workpixels, unsigned int width, unsigned int height, unsigned int x, unsigned int y,unsigned int *inpixels) {
 	unsigned int uc[4]; // unshifted colors
-	// Yellow, Cyan, Magenta, Blue
+	// Green, Yellow, Cyan, Magenta
 	unsigned int ct=x+width*y;
 	const unsigned int hstep=PIXEL_STEP_TO_CENTER;
 	unsigned int vstep=width*hstep;
@@ -326,14 +341,14 @@ int findOnePattern(unsigned int *workpixels, unsigned int width, unsigned int he
 		for (int i=0; i<4; i++) {
 			// check every square
 			// pr=0
-			//  Y |            | C          |             |
-			// -------  ->  -------  ->  --------  ->  -------
-			//    |            |            | M         B |
-			//
-			// pr=1
-			//  B |            | Y          |             |
+			//  G |            | Y          |             |
 			// -------  ->  -------  ->  --------  ->  -------
 			//    |            |            | C         M |
+			//
+			// pr=1
+			//  M |            | G          |             |
+			// -------  ->  -------  ->  --------  ->  -------
+			//    |            |            | Y         C |
 			//
 			// ...
 			diff+=checkSquare(uc[(pr+i)%4], i);
@@ -349,7 +364,7 @@ int findOnePattern(unsigned int *workpixels, unsigned int width, unsigned int he
 			algo_stats_mindiff=diff;
 			algo_stats_minpr=pr;
 		}
-		if (diff-30<=AVERAGE_DIFFERENCE_ALLOWED) {
+		if (diff-40<=AVERAGE_DIFFERENCE_ALLOWED) {
 			Log_i("Square pr:%d | d:%d | hues:%d,%d,%d,%d | sat:%d,%d,%d,%d | pos: %d,%d",algo_stats_minpr,algo_stats_mindiff*100/AVERAGE_DIFFERENCE_ALLOWED,
 						algo_stats_hues[0]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_hues[1]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_hues[2]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_hues[3]*100/AVERAGE_DIFFERENCE_ALLOWED,
 						algo_stats_sat[0]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_sat[1]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_sat[2]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_sat[3]*100/AVERAGE_DIFFERENCE_ALLOWED,
@@ -368,9 +383,8 @@ int findOnePattern(unsigned int *workpixels, unsigned int width, unsigned int he
 	return -1;
 }
 
-
-
-void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned int width, unsigned int height, int mark[MAX_MARK_COUNT][3], int *markcount) {
+/*
+void findDebugPattern(unsigned int *inpixels, unsigned int *workpixels, unsigned int width, unsigned int height, int mark[MAX_MARK_COUNT][3], int *markcount) {
 	// the fun part start here... bruteforce every position
 	//          i=
 	//        5 7 9
@@ -380,22 +394,72 @@ void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned 
 
 	*markcount=0;
 
-	for (int j=PIXEL_STEP_TO_CENTER; j<height-PIXEL_STEP_TO_CENTER; j+=2) {
-		for (int i=PIXEL_STEP_TO_CENTER; i<width-PIXEL_STEP_TO_CENTER; i+=2) {
+	int i=1981;
+	int j=1532;
 			//markPixel(inpixels,width, height, i, j);
 			int pr=findOnePattern(workpixels, width, height, i,j,inpixels);
 			if (pr>=0) {
 				prcount[pr]++;
 				markPixel(inpixels,width, height, i, j,0xFF00FF00,3+width/256);
 				// also burn the workpixels to make sure we do not count the same square 2 times
-				markPixel(workpixels,width, height, i, j,0x00000000,7+width/1024);
+				markPixel(workpixels,width, height, i, j,0x00000000,9+width/1024);
 				// x, y, z
 				mark[*markcount][0]=i;
 				mark[*markcount][1]=j;
 				mark[*markcount][2]=pr;
 				(*markcount)++;
 				if (*markcount>=MAX_MARK_COUNT) {
-					Log_i("unlikely event : pattern count match limit reached, stopping before the image is completely processed");
+					Log_w("unlikely event : pattern count match limit reached, stopping before the image is completely processed");
+					goto SkipFindAllPaternsLoop;
+				}
+			}
+
+	SkipFindAllPaternsLoop:
+	Log_i("found patterns... 1: %d | 2: %d | 3: %d | 4: %d ", prcount[0], prcount[1], prcount[2], prcount[3]);
+}*/
+
+
+unsigned int matchcolors[4]={
+		0x0000FF00,
+		0x00FF00FF,
+		0x00FFFF00,
+		0x0000FFFF
+};
+
+
+void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned int width, unsigned int height, int mark[MAX_MARK_COUNT][3], int *markcount) {
+	// the fun part start here... bruteforce every position
+	//          i=
+	//        5 7 9
+	// j=5 -> + . .     . + .    . . +    . . .
+	// j=7 -> . . .  -> . . . -> . . . -> + . .
+	// j=9 -> . . .     . . .    . . .    . . .
+	int maxdim=max(width, height);
+	int burnradius=10+maxdim/256;
+
+	*markcount=0;
+	for (int j=PIXEL_STEP_TO_CENTER; j<height-PIXEL_STEP_TO_CENTER; j+=2) {
+		for (int i=PIXEL_STEP_TO_CENTER; i<width-PIXEL_STEP_TO_CENTER; i+=2) {
+			// skip burned pixels
+			if ((workpixels[i+width*j] & 0xFF000000) == 0xFF000000)
+				continue;
+			int pr=findOnePattern(workpixels, width, height, i,j,inpixels);
+			if (pr>=0) {
+				prcount[pr]++;
+
+				// this mark is just for display
+				markPixel(inpixels,width, height, i, j,matchcolors[pr],burnradius);
+
+				// also burn the workpixels to make sure we do not count the same square 2 times
+				markPixel(workpixels,width, height, i, j,0xFF000000,burnradius);
+
+				// this will be part of the function return values (converted to json)
+				mark[*markcount][0]=i;
+				mark[*markcount][1]=j;
+				mark[*markcount][2]=pr;
+				(*markcount)++;
+				if (*markcount>=MAX_MARK_COUNT) {
+					Log_w("unlikely event : pattern count match limit reached, stopping before the image is completely processed");
 					goto SkipFindAllPaternsLoop;
 				}
 			}
@@ -452,6 +516,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_MainAct_nativeAnalyze(JNI
 		return NULL;
 
 	findAllPatterns(pixels,workpixels,width, height, mark, &markcount);
+	//findDebugPattern(pixels,workpixels,width, height, mark, &markcount);
 	benchmarkElapsed("findAllPatterns");
 	free(workpixels);
 

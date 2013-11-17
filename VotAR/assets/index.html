@@ -1,0 +1,394 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>VotAR - Vote with Augmented Reality</title>
+<style>
+body {
+	background-color: #000000;
+	color: #CCCCCC;
+	margin:0%;
+	padding:0%;
+}
+
+#headerblock{
+	position:absolute;
+	top:0vh;
+	left:0vw;
+	width:100vw;
+	height:9.5vh;
+}
+#headertext {
+	font-size:5vh;
+	left:13vh;
+	top:2vh;
+	position:absolute;
+}
+#headerlogo {
+	left:2vw;
+	width:8vh;
+	height:8vh;
+	top:1vh;
+	position:absolute;
+	background-image: url("/votar_logo.png");
+	background-repeat: no-repeat;
+	background-size:8vh;	
+}
+#line1 {
+	position:absolute;
+	top:9.5vh;
+	left:0vw;
+	width:100vw;
+	height:0.5vh;
+	background-color:#808080;
+}
+#line2 {
+	position:absolute;
+	top:94vh;
+	left:0vw;
+	width:100vw;
+	height:0.5vh;
+	background-color:#808080;
+}
+#subheader {
+	font-size:4vh;
+}
+
+#contentblock {
+	position:absolute;
+	top:10vh;
+	left:0vw;
+	width:100vw;
+	height:84vh;
+	background-color:#333333;
+}
+
+#photoblock {
+	position:absolute;
+	width:72vw;
+	/*height:100%;*/
+	left:2vh;
+	top:2vh;
+	bottom:2vh;
+}
+
+
+#statsblock {
+	font-size:4vh;
+	position:absolute;
+	width:22vw;
+	height:78vh;
+	right:2vw;
+	top:3vh;
+}
+#footerblock {
+	position:absolute;
+	top:94.5vh;
+	bottom:0vh;
+	left:0vw;
+	width:100vw;
+	height:5.5vh;
+}
+#footertext {
+	font-size:2vh;
+	left:2vw;
+	top:1vh;
+	position:absolute;
+}
+#footerdeco {
+	right:4vw;
+	width:26vh;
+	height:4vh;
+	top:0vh;
+	position:absolute;
+	background-image: url("/footer_deco.png");
+	background-repeat: no-repeat;
+	background-size:26vh;	
+}
+#footertext a {
+	color: #CCCCCC;
+}
+
+#photo {
+	display:block;
+	/*left:0%;*/
+	top:0%;
+	max-width: 100%;
+	max-height: 100%;
+	margin-right:auto;
+	margin-left:auto;
+}
+.bar {
+	overflow:hidden;
+	display:block;
+	width:3vh;
+	margin-bottom:3vh;
+}
+
+#bar1 { background-color:#00FF00; }
+#bar2 { background-color:#FF00FF; }
+#bar3 { background-color:#FFFF00; }
+#bar4 { background-color:#00FFFF; }
+
+</style>
+</head>
+<body>
+<div id="headerblock"><div id="headerlogo">&nbsp;</div><div id="headertext">VotAR</div></div>
+<div id="line1">&nbsp;</div>
+<div id="contentblock">
+<div id="statsblock">
+<div class="countblock">
+	<div><span id="label1">a: </span><span id="prcount1"></span></div>
+	<div id="bar1" class="bar">&nbsp;</div>
+</div>
+<div class="countblock">
+	<div><span id="label2">b: </span><span id="prcount2"></span></div>
+	<div id="bar2" class="bar">&nbsp;</div>
+</div>
+<div class="countblock">
+	<div><span id="label3">c: </span><span id="prcount3"></span></div>
+	<div id="bar3" class="bar">&nbsp;</div>
+</div>
+<div class="countblock">
+	<div><span id="label4">d: </span><span id="prcount4"></span></div>
+	<div id="bar4" class="bar">&nbsp;</div>
+</div>
+</div>
+<div id="photoblock">
+<canvas id="photo"/>
+</div>
+</div>
+<div id="line2">&nbsp;</div>
+<div id="footerblock"><div id="footerdeco">&nbsp;</div><div id="footertext"><a href="http://votar.mightwork.org">http://votar.mightwork.org</a></div></div>
+<script>
+var datatimestamp=-999999;
+
+var STATUS_DEBUG=0;
+var STATUS_OK=0;
+var STATUS_ERROR=1;
+
+var canvas=document.getElementById("photo");
+var ctx=canvas.getContext("2d");
+var drawwait=2;
+var mark=null;
+var img;
+
+var prcount;
+var prcountmax;
+var prcountspan=[
+		document.getElementById("prcount1"),
+		document.getElementById("prcount2"),
+		document.getElementById("prcount3"),
+		document.getElementById("prcount4")
+	];
+	
+var barspan=[
+		document.getElementById("bar1"),
+		document.getElementById("bar2"),
+		document.getElementById("bar3"),
+		document.getElementById("bar4")
+    ];
+var barcolor=[
+		"#00FF00",
+		"#FF00FF",
+		"#FFFF00",
+		"#00FFFF"
+	];
+
+
+// old IE compatibility
+if (!window.JSON) {
+	window.JSON = {
+		parse: function (sJSON) { return eval("(" + sJSON + ")"); }
+	};
+}
+
+function showMessage(status, message) {
+	console.log(message);
+}
+
+// function based mostly on MDN code
+function makeRequest(url, func, timeout, timeoutfunc) {
+	var httpRequest;
+	if (window.XMLHttpRequest) { // Mozilla, Safari, ...
+		httpRequest = new XMLHttpRequest();
+	} else if (window.ActiveXObject) { // IE
+		try {
+			httpRequest = new ActiveXObject("Msxml2.XMLHTTP");
+		} catch (e) {
+			try {
+				httpRequest = new ActiveXObject("Microsoft.XMLHTTP");
+			} catch (e) {
+			}
+		}
+	}
+
+	if (!httpRequest) {
+		alert('Giving up :( Cannot create an XMLHTTP instance');
+		return false;
+	}
+
+	httpRequest.onreadystatechange = func;
+	httpRequest.open('GET', url);
+	if (timeout>0) {
+		httpRequest.timeout = timeout;
+		if (timeoutfunc!=null)
+			httpRequest.ontimeout = timeoutfunc;
+	}
+	httpRequest.send();
+	
+}
+
+function markProcess() {
+	if (this.readyState === 4) {
+		if (this.status === 200 || this.status === 304) {
+			console.log("markProcess: "+this.responseText);
+			mark=null;
+			try {
+				mark=JSON.parse(this.responseText);
+			} catch (e) {
+				showMessage(STATUS_ERROR, "impossible de traiter la liste de points");
+			}
+			if (mark==null) {
+				showMessage(STATUS_ERROR, "impossible de traiter la liste de points");
+			}
+			drawwait--;
+			markDraw();
+			markCount();
+		} else {
+			console.log("markProcess: HTTP ERROR: "+this.status + "> "+this.responseText);
+		}
+	}
+}
+
+
+function markDraw() {
+	if (drawwait<=0) {	
+		console.log("c:"+canvas.width+"x"+canvas.height);
+	
+		for (var i=0; i<mark.length; i++) {
+			ctx.fillStyle=barcolor[mark[i][2]];
+			ctx.fillRect(Math.max(0,mark[i][0]-20),Math.max(0,mark[i][1]-20),40,40);
+			showMessage(STATUS_DEBUG, "mark "+i+": ("+mark[i][0]+","+mark[i][1]+") -> "+mark[i][2]);
+		}
+	}
+}
+
+function markCount() {
+	prcount=[0,0,0,0];
+	// mark[i] is the current mark, and column [2] is the pattern rotation detected for this mark
+	prcountmax=0;
+	for (var i=0; i<mark.length; i++) {
+		prcount[mark[i][2]]++;
+	}
+	for (var i=0; i<4; i++) {
+		if (prcount[i]>prcountmax)
+			prcountmax=prcount[i];
+	}
+	for (var i=0; i<4; i++) {
+		prcountspan[i].innerHTML=prcount[i];
+	}
+	if (prcountmax<=0)
+		return;
+	for (var i=0; i<4; i++) {
+		barspan[i].style.width=""+prcount[i]*20/prcountmax+"vw";
+	}
+}
+
+
+
+function resetDisplay() {
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	for (var i=0; i<4; i++) {
+		prcountspan[i].innerHTML="";
+	}
+	for (var i=0; i<4; i++) {
+		barspan[i].style.width="0px";
+	}
+}
+
+function redrawLoad() {
+	console.log("image x/y: "+img.width+"/"+img.height);
+	canvas.width=img.width;
+	canvas.height=img.height;
+	ctx.drawImage(img, 0, 0);
+	drawwait--;
+	markDraw();
+}
+
+function redraw() {
+	ctx.drawImage(img, 0, 0);
+	markDraw();
+}
+
+function datatimestampProcess() {
+	if (this.readyState === 4) {
+		if (this.status === 200 || this.status === 304) {
+			var newdatatimestamp=parseInt(this.responseText);
+			if (datatimestamp<newdatatimestamp) {
+				datatimestamp=newdatatimestamp;
+				drawwait=2;
+				console.log("Timestamp changed, new data: "+ this.responseText);
+				resetDisplay();
+				img=new Image();
+				img.src="/photo?"+newdatatimestamp;
+				img.onload=redrawLoad;
+				makeMarkRequest();
+			}
+			window.setTimeout(makeDatatimestampRequest, 2000);
+		} else {
+			console.log("datatimestampProcess: HTTP ERROR: "+this.status + "> "+this.responseText);
+			window.setTimeout(makeDatatimestampRequest, 12000);
+		}
+	}
+}
+
+function datatimestampTimeout() {
+	console.log("datatimestampTimeout!");
+	makeDatatimestampRequest();
+	//window.setTimeout(makeDatatimestampRequest, 2000);
+}
+
+function markTimeout() {
+	console.log("markTimeout!");
+}
+
+function makeDatatimestampRequest() {
+	makeRequest("/datatimestamp?t2="+Date.now(), datatimestampProcess, 5000, datatimestampTimeout);
+}
+function makeMarkRequest() {
+	makeRequest("/points?t="+datatimestamp, markProcess, 55000, markTimeout);
+}
+window.setTimeout(makeDatatimestampRequest, 500);
+
+// mostly based on : http://phrogz.net/tmp/canvas_zoom_to_cursor.html
+
+/*
+var lastX=lastY=0;
+
+var zoom = function(clicks) {
+	var pt = ctx.transformedPoint(lastX,lastY);
+	ctx.translate(pt.x,pt.y);
+	var factor = Math.pow(scaleFactor,clicks);
+	ctx.scale(factor,factor);
+	ctx.translate(-pt.x,-pt.y);
+	redraw();
+}
+
+var handleScroll = function(evt) {
+	if (canvas!=null && canvas.width>0) {
+		var delta = evt.wheelDelta ? evt.wheelDelta/40 : evt.detail ? -evt.detail : 0;
+		if (delta) zoom(delta);
+		return evt.preventDefault() && false;
+	}
+}
+
+
+
+canvas.addEventListener('DOMMouseScroll',handleScroll,false);
+canvas.addEventListener('mousewheel',handleScroll,false);
+*/
+
+</script>
+</body>
+</html>

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <?fileVersion 4.0.0?><cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
 	<storageModule moduleId="org.eclipse.cdt.core.settings">
-		<cconfiguration id="com.android.toolchain.gcc.1907235547">
-			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.android.toolchain.gcc.1907235547" moduleId="org.eclipse.cdt.core.settings" name="Default">
+		<cconfiguration id="com.android.toolchain.gcc.1970358613">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.android.toolchain.gcc.1970358613" moduleId="org.eclipse.cdt.core.settings" name="Default">
 				<externalSettings/>
 				<extensions>
 					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
@@ -17,37 +17,18 @@
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactName="${ProjName}" buildProperties="" description="" id="com.android.toolchain.gcc.1907235547" name="Default" parent="org.eclipse.cdt.build.core.emptycfg">
-					<folderInfo id="com.android.toolchain.gcc.1907235547.230687026" name="/" resourcePath="">
-						<toolChain id="com.android.toolchain.gcc.831973745" name="com.android.toolchain.gcc" superClass="com.android.toolchain.gcc">
-							<targetPlatform binaryParser="org.eclipse.cdt.core.ELF" id="com.android.targetPlatform.2026255926" isAbstract="false" superClass="com.android.targetPlatform"/>
-							<builder arguments="NDK_NO_WARNINGS=1" command="ndk-build" id="com.android.builder.1863944220" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Android Builder" superClass="com.android.builder">
+				<configuration artifactName="${ProjName}" buildProperties="" description="" id="com.android.toolchain.gcc.1970358613" name="Default" parent="org.eclipse.cdt.build.core.emptycfg">
+					<folderInfo id="com.android.toolchain.gcc.1970358613.1526301465" name="/" resourcePath="">
+						<toolChain id="com.android.toolchain.gcc.287000500" name="com.android.toolchain.gcc" superClass="com.android.toolchain.gcc">
+							<targetPlatform binaryParser="org.eclipse.cdt.core.ELF" id="com.android.targetPlatform.1258498769" isAbstract="false" superClass="com.android.targetPlatform"/>
+							<builder id="com.android.builder.46618842" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Android Builder" superClass="com.android.builder">
 								<outputEntries>
 									<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="outputPath" name="obj"/>
 									<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="outputPath" name="libs"/>
 								</outputEntries>
 							</builder>
-							<tool id="com.android.gcc.compiler.706923148" name="Android GCC Compiler" superClass="com.android.gcc.compiler">
-								<option id="com.android.gcc.option.includePath.155651815" superClass="com.android.gcc.option.includePath" valueType="includePath">
-									<listOptionValue builtIn="false" value="/opt/android-ndk-r8d/platforms/android-9/arch-arm/usr/include"/>
-									<listOptionValue builtIn="false" value="/opt/android-ndk-r8d/toolchains/arm-linux-androideabi-4.7/prebuilt/linux-x86/include"/>
-									<listOptionValue builtIn="false" value="/opt/android-ndk-r8d/sources/cxx-stl/gnu-libstdc++/4.7/include"/>
-								</option>
-								<inputType id="com.android.gcc.inputType.3549158" superClass="com.android.gcc.inputType"/>
-							</tool>
-						</toolChain>
-					</folderInfo>
-					<folderInfo id="com.android.toolchain.gcc.1907235547.1771961341" name="/" resourcePath="jni">
-						<toolChain id="com.android.toolchain.gcc.164741528" name="com.android.toolchain.gcc" superClass="com.android.toolchain.gcc" unusedChildren="">
-							<targetPlatform binaryParser="org.eclipse.cdt.core.ELF" id="com.android.targetPlatform" isAbstract="false" superClass="com.android.targetPlatform"/>
-							<tool id="com.android.gcc.compiler.335991204" name="Android GCC Compiler" superClass="com.android.gcc.compiler.706923148">
-								<option id="com.android.gcc.option.includePath.139876492" superClass="com.android.gcc.option.includePath" valueType="includePath">
-									<listOptionValue builtIn="false" value="/opt/android-ndk-r8d/toolchains/arm-linux-androideabi-4.7/prebuilt/linux-x86/include"/>
-									<listOptionValue builtIn="false" value="/opt/android-ndk-r8d/sources/cxx-stl/gnu-libstdc++/4.7/include"/>
-									<listOptionValue builtIn="false" value="/opt/android-ndk-r8d/platforms/android-9/arch-x86/usr/include"/>
-									<listOptionValue builtIn="false" value="/opt/android-ndk-r8d/platforms/android-9/arch-arm/usr/include"/>
-								</option>
-								<inputType id="com.android.gcc.inputType.288341384" superClass="com.android.gcc.inputType"/>
+							<tool id="com.android.gcc.compiler.283722283" name="Android GCC Compiler" superClass="com.android.gcc.compiler">
+								<inputType id="com.android.gcc.inputType.1325722193" superClass="com.android.gcc.inputType"/>
 							</tool>
 						</toolChain>
 					</folderInfo>
@@ -60,18 +41,14 @@
 		</cconfiguration>
 	</storageModule>
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-		<project id="VotAR.null.548193050" name="VotAR"/>
+		<project id="VotAR.null.1779420887" name="VotAR"/>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="scannerConfiguration">
 		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		<scannerConfigBuildInfo instanceId="com.android.toolchain.gcc.1907235547;com.android.toolchain.gcc.1907235547.230687026;com.android.gcc.compiler.706923148;com.android.gcc.inputType.3549158">
+		<scannerConfigBuildInfo instanceId="com.android.toolchain.gcc.1970358613;com.android.toolchain.gcc.1970358613.1526301465;com.android.gcc.compiler.283722283;com.android.gcc.inputType.1325722193">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="com.android.AndroidPerProjectProfile"/>
 		</scannerConfigBuildInfo>
 	</storageModule>
-	<storageModule moduleId="refreshScope" versionNumber="2">
-		<configuration configurationName="Default">
-			<resource resourceType="PROJECT" workspacePath="/VotAR"/>
-		</configuration>
-	</storageModule>
+	<storageModule moduleId="refreshScope"/>
 </cproject>

@@ -1,7 +1,6 @@
 package com.poinsart.votar;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -14,10 +13,10 @@ import org.json.JSONArray;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.text.Layout;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
@@ -27,11 +26,11 @@ import android.widget.LinearLayout.LayoutParams;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.content.Intent;
+import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.drawable.GradientDrawable.Orientation;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
@@ -66,6 +65,7 @@ public class MainAct extends Activity {
 	public long datatimestamp=Long.MIN_VALUE/TIME_DIVIDE;
 	
 	private VotarWebServer votarwebserver;
+	public AssetManager assetMgr;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +73,7 @@ public class MainAct extends Activity {
 	    System.loadLibrary("VotAR");
 	    super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+		assetMgr = this.getAssets();
 		
 		imageView = (ImageView) findViewById(R.id.imageView);
 		bar[0]=(ProgressBar) findViewById(R.id.bar_a);
@@ -184,13 +185,51 @@ public class MainAct extends Activity {
 	// found in native code, check jni exports
 	public native Mark[] nativeAnalyze(Bitmap b, int prcount[]);
 
-	protected void analyze(Bitmap photo) {
+	private class AnalyzeTask extends AsyncTask<Bitmap, Void, Void> {
+		private Mark mark[];
+		private int prcount[];
+		private Bitmap photo;
+		
+		@Override
+		protected Void doInBackground(Bitmap... photos) {
+			photo=photos[0];
+			prcount=new int[4];
+			mark=nativeAnalyze(photo, prcount);
+			return null;
+		}
+		@Override
+		protected void onPostExecute(Void unused) {
+			// nativeAnalyze returns null if anything goes wrong, just silently ignore
+			if (prcount!=null && mark!=null) {
+				int max=0;
+				for (int i=0; i<4; i++) {
+					if (prcount[i]>max)
+						max=prcount[i];
+					barLabel[i].setText(new String(Character.toChars(97+i))+": "+prcount[i]);
+				}
+				for (int i=0; i<4; i++) {
+					bar[i].setMax(max);
+					bar[i].setProgress(prcount[i]);
+				}
+
+
+				imageView.setImageBitmap(photo);
+			}
+
+			writeJsonPoints(mark);
+
+			pointsLock.countDown();
+	    }
+	}
+	/*
+	protected void analyze(final Bitmap photo) {
+
 		int prcount[]=new int[4];
 		Mark mark[]=nativeAnalyze(photo, prcount);
-		
+
 		// if (mark.length>0 && mark[0]!=null)
 		//		Log.d("VotAR analyze", "returning data to java, first mark: "+mark[0].x+"|"+mark[0].y+"|"+mark[0].pr+", mark count: "+mark.length);
-		
+
 		// nativeAnalyze returns null if anything goes wrong, just silently ignore
 		if (prcount!=null && mark!=null) {
 			int max=0;
@@ -204,15 +243,14 @@ public class MainAct extends Activity {
 				bar[i].setProgress(prcount[i]);
 			}
 
-			
+
 			imageView.setImageBitmap(photo);
 		}
-		
-		writeJsonPoints(mark);
-		
-		pointsLock.countDown();
 
-	}
+		writeJsonPoints(mark);
+
+		pointsLock.countDown();
+	}*/
 	
 	/*
 	 *  for now this just save the points into a json string,
@@ -271,6 +309,6 @@ public class MainAct extends Activity {
 			return;
 		
 		photoLock.countDown();
-		analyze(photo);
+		new AnalyzeTask().execute(photo);
 	}
 }
