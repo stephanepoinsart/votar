@@ -470,7 +470,37 @@ void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned 
 }
 
 
-JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_MainAct_nativeAnalyze(JNIEnv *env, jclass reserved, jobject bitmap, jintArray jprcount)
+// this function is a modified version of the BSD "toInt" in decaf project
+// from Sattvik Software & Technology Resources, Ltd. Co.
+// https://github.com/sattvik/decafbot/blob/master/ndk/jni/decafbot.c
+jobject javaInteger(JNIEnv* env, jint value) {
+	static jclass integerClass;
+	static jmethodID valueOfMethod;
+
+	/* get class for Integer */
+	if(integerClass == NULL) {
+		integerClass = env->FindClass("java/lang/Integer");
+		if (integerClass == NULL) {
+			Log_e("Failed to find class for Integer");
+			return NULL;
+		}
+	}
+
+	/* get Integer.valueOf(int) method */
+	if(valueOfMethod == NULL) {
+		valueOfMethod = env->GetStaticMethodID(integerClass, "valueOf", "(I)Ljava/lang/Integer;");
+		if (valueOfMethod == NULL) {
+			Log_e("Failed to find static method Integer.valueOf(int)");
+			return NULL;
+		}
+	}
+
+	/* do the conversion */
+	return env->CallStaticObjectMethod(integerClass, valueOfMethod, value);
+}
+
+
+JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_MainAct_00024AnalyzeTask_nativeAnalyze(JNIEnv *env, jobject task, jobject bitmap, jintArray jprcount)
 {
 	AndroidBitmapInfo info;
 	unsigned int *pixels, *workpixels;
@@ -482,6 +512,31 @@ JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_MainAct_nativeAnalyze(JNI
 
 	Log_i("Now in nativeAnalyze code");
 	benchmarkStart();
+
+	jclass taskClass = env->GetObjectClass(task);
+	jmethodID publishMethod = env->GetMethodID(taskClass, "publishProgress", "([Ljava/lang/Object;)V");
+	if(publishMethod==NULL) {
+		Log_e("Internal Error: failed to find java method com/poinsart/votar/Mark");
+		return NULL;
+	}
+
+	jobject progress;
+
+	jclass jobjectArrayClass = env->FindClass("[Ljava/lang/Object;");
+	if (jobjectArrayClass == NULL) {
+		Log_e("Failed to find class for Object[]");
+		return NULL;
+	}
+	jclass jIntegerClass = env->FindClass("java/lang/Integer");
+	if (jIntegerClass == NULL) {
+		Log_e("Failed to find class for Integer");
+		return NULL;
+	}
+	jobjectArray progressArray = env->NewObjectArray(1, jIntegerClass, NULL);
+	if (progressArray == NULL) {
+		Log_e("Failed to allocate object array for published progress.");
+		return NULL;
+	}
 
 	prcount[0]=prcount[1]=prcount[2]=prcount[3]=0;
 
@@ -507,6 +562,10 @@ JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_MainAct_nativeAnalyze(JNI
 		return NULL;
 	}
 
+	progress=javaInteger(env,1);
+	env->SetObjectArrayElement(progressArray, 0, progress);
+	env->CallVoidMethod(task, publishMethod, progressArray);
+
 
 	/////////////////////////////
 	// most of the magic happens here
@@ -515,7 +574,16 @@ JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_MainAct_nativeAnalyze(JNI
 	if (!workpixels)
 		return NULL;
 
+	progress=javaInteger(env,2);
+	env->SetObjectArrayElement(progressArray, 0, progress);
+	env->CallVoidMethod(task, publishMethod, progressArray);
+
+
 	findAllPatterns(pixels,workpixels,width, height, mark, &markcount);
+	progress=javaInteger(env,3);
+	env->SetObjectArrayElement(progressArray, 0, progress);
+	env->CallVoidMethod(task, publishMethod, progressArray);
+
 	//findDebugPattern(pixels,workpixels,width, height, mark, &markcount);
 	benchmarkElapsed("findAllPatterns");
 	free(workpixels);

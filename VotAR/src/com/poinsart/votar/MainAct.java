@@ -12,6 +12,7 @@ import org.json.JSONArray;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -182,13 +183,15 @@ public class MainAct extends Activity {
 	}
 
 	
-	// found in native code, check jni exports
-	public native Mark[] nativeAnalyze(Bitmap b, int prcount[]);
-
-	private class AnalyzeTask extends AsyncTask<Bitmap, Void, Void> {
+	private class AnalyzeTask extends AsyncTask<Bitmap, Integer, Void> {
 		private Mark mark[];
 		private int prcount[];
 		private Bitmap photo;
+		
+		private ProgressDialog mProgressDialog;
+		
+		// found in native code, check jni exports
+		public native Mark[] nativeAnalyze(Bitmap b, int prcount[]);
 		
 		@Override
 		protected Void doInBackground(Bitmap... photos) {
@@ -197,6 +200,51 @@ public class MainAct extends Activity {
 			mark=nativeAnalyze(photo, prcount);
 			return null;
 		}
+		private void showProgressDialog(int step) {
+			switch (step) {
+			case 0:
+				mProgressDialog = new ProgressDialog(MainAct.this);
+				mProgressDialog.setTitle("Processing image");
+				mProgressDialog.setProgressNumberFormat("%1d%%");
+				mProgressDialog.setMax(100);
+				mProgressDialog.setProgress(0);
+				mProgressDialog.setIndeterminate(false);
+				mProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+				mProgressDialog.setMessage("Initializing...");
+				mProgressDialog.show();
+				break;
+			case 1:
+				mProgressDialog.setProgress(10);
+				mProgressDialog.setProgressNumberFormat("%1d%%");
+				mProgressDialog.setMessage("Preprocessing surface...");
+				break;
+			case 2:
+				mProgressDialog.setProgress(25);
+				mProgressDialog.setProgressNumberFormat("%1d%%");
+				mProgressDialog.setMessage("Examining color patterns...");
+				break;
+					
+			case 3:
+				mProgressDialog.setProgress(90);
+				mProgressDialog.setProgressNumberFormat("%1d%%");
+				mProgressDialog.setMessage("Compiling results...");
+				break;
+			case 4:
+				mProgressDialog.dismiss();
+				break;
+				
+			}
+		}
+
+		@Override
+		protected void onProgressUpdate(Integer... progress) {
+			showProgressDialog(progress[0]);
+		}
+		
+		protected void onPreExecute() {
+			showProgressDialog(0);
+		}
+		
 		@Override
 		protected void onPostExecute(Void unused) {
 			// nativeAnalyze returns null if anything goes wrong, just silently ignore
@@ -219,6 +267,7 @@ public class MainAct extends Activity {
 			writeJsonPoints(mark);
 
 			pointsLock.countDown();
+			showProgressDialog(4);
 	    }
 	}
 	/*
