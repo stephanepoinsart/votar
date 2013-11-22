@@ -7,9 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
 
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
-import android.content.Context;
+
 import android.util.Log;
 import fi.iki.elonen.NanoHTTPD;
 
@@ -21,24 +19,10 @@ public class VotarWebServer extends NanoHTTPD {
 	public VotarWebServer(int port, MainAct mainact) {
 		super(port);
 		this.mainact=mainact;
-		String ip=getWifiIp();
-		if (ip==null)
-			Log.i("Votar WebServer", "Starting Votar WebServer but no wifi network detected");
-		else
-			Log.i("Votar WebServer", "Starting Votar WebServer on http://"+ip+":51285");
+		mainact.updateWifiStatus();
 	}
 	
-    private String getWifiIp() {
-    	int ip;
-    	
-    	WifiManager wm=(WifiManager) mainact.getSystemService(Context.WIFI_SERVICE);
-    	WifiInfo wi=wm.getConnectionInfo();
-    	if (wi==null || wi.getNetworkId()==-1)
-    		return null;
-    	ip=wi.getIpAddress();
-    	return "" + (ip & 0xFF) + "." + ((ip >> 8) & 0xFF) + "." + ((ip >> 16) & 0xFF) + "." + ((ip >> 24 ) & 0xFF);
-    }
-	
+
     private Response createResponse(Response.Status status, String mimeType, String message) {
         Response res = new Response(status, mimeType, message);
         res.addHeader("Access-Control-Allow-Origin", "*");

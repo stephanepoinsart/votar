@@ -14,6 +14,8 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.net.Uri;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
@@ -26,7 +28,10 @@ import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.database.Cursor;
@@ -57,6 +62,7 @@ public class MainAct extends Activity {
 	private ImageView imageView;
 	private ProgressBar bar[]= {null, null, null, null};
 	private TextView barLabel[]={null, null, null, null};
+	public TextView wifiLabel=null;
 	private LinearLayout mainLayout, controlLayout, imageLayout;
 	
 	public CountDownLatch photoLock;
@@ -86,6 +92,8 @@ public class MainAct extends Activity {
 		barLabel[1]=(TextView) findViewById(R.id.label_b);
 		barLabel[2]=(TextView) findViewById(R.id.label_c);
 		barLabel[3]=(TextView) findViewById(R.id.label_d);
+		
+		wifiLabel=(TextView) findViewById(R.id.label_wifi);
 		
 		mainLayout=((LinearLayout)findViewById(R.id.mainLayout));
 		controlLayout=((LinearLayout)findViewById(R.id.controlLayout));
@@ -181,6 +189,59 @@ public class MainAct extends Activity {
 
 	    return mediaFile;
 	}
+	
+    public String getWifiIp() {
+    	int ip;
+    	
+    	WifiManager wm=(WifiManager) getSystemService(Context.WIFI_SERVICE);
+    	WifiInfo wi=wm.getConnectionInfo();
+    	if (wi==null || wi.getNetworkId()==-1)
+    		return null;
+    	ip=wi.getIpAddress();
+    	if (ip==0x00000000)
+    		return null;
+    	return "" + (ip & 0xFF) + "." + ((ip >> 8) & 0xFF) + "." + ((ip >> 16) & 0xFF) + "." + ((ip >> 24 ) & 0xFF);
+    }
+
+    public boolean updateWifiStatus() {
+    	String wifiIp=getWifiIp();
+		if (wifiIp!=null) {
+			wifiLabel.setText("http://"+wifiIp+":51285");
+			return true;
+		}
+		wifiLabel.setText(R.string.nowificon);
+		return false;
+    }
+    
+    @Override
+	protected void onResume()
+	{
+    	super.onResume();
+    	IntentFilter intentFilter = new IntentFilter();
+    	intentFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
+    	registerReceiver(broadcastReceiver, intentFilter);
+//Log.i("Votar MainAct", "Wifi update from onResume");
+    	updateWifiStatus();
+    }
+
+    @Override
+    protected void onPause()
+    {
+    	super.onPause();
+    	unregisterReceiver(broadcastReceiver);
+    }
+    private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver()
+    {
+    	@Override
+    	public void onReceive(Context context, Intent intent) {
+    		final String action = intent.getAction();
+    		if (action.equals(WifiManager.NETWORK_STATE_CHANGED_ACTION)) {
+//    			Log.i("Votar MainAct", "Wifi update from onReceive");
+    			updateWifiStatus();
+    		}
+    	}
+	};
+	
 
 	
 	private class AnalyzeTask extends AsyncTask<Bitmap, Integer, Void> {
@@ -270,37 +331,7 @@ public class MainAct extends Activity {
 			showProgressDialog(4);
 	    }
 	}
-	/*
-	protected void analyze(final Bitmap photo) {
 
-		int prcount[]=new int[4];
-		Mark mark[]=nativeAnalyze(photo, prcount);
-
-		// if (mark.length>0 && mark[0]!=null)
-		//		Log.d("VotAR analyze", "returning data to java, first mark: "+mark[0].x+"|"+mark[0].y+"|"+mark[0].pr+", mark count: "+mark.length);
-
-		// nativeAnalyze returns null if anything goes wrong, just silently ignore
-		if (prcount!=null && mark!=null) {
-			int max=0;
-			for (int i=0; i<4; i++) {
-				if (prcount[i]>max)
-					max=prcount[i];
-				barLabel[i].setText(new String(Character.toChars(97+i))+": "+prcount[i]);
-			}
-			for (int i=0; i<4; i++) {
-				bar[i].setMax(max);
-				bar[i].setProgress(prcount[i]);
-			}
-
-
-			imageView.setImageBitmap(photo);
-		}
-
-		writeJsonPoints(mark);
-
-		pointsLock.countDown();
-	}*/
-	
 	/*
 	 *  for now this just save the points into a json string,
 	 *  could use a file for more permanent storage

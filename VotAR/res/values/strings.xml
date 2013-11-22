@@ -9,5 +9,7 @@
     <string name="vote_b">b</string>
     <string name="vote_c">c</string>
     <string name="vote_d">d</string>
+    <string name="nowificon">No WiFi connection</string>
+    <string name="wifidisabled">WiFi disabled in VotAR settings</string>
 
 </resources>

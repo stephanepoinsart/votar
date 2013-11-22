@@ -121,6 +121,17 @@
                     android:progress="10"
                     android:progressDrawable="@drawable/bar_d" />
 
+                <TextView
+                    android:id="@+id/label_wifi"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/wifidisabled"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:paddingTop="10dip"
+                    />
+                
+
             </LinearLayout>
 
             <LinearLayout
