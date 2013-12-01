@@ -2,21 +2,23 @@ package com.poinsart.votar;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.concurrent.CountDownLatch;
 import java.lang.System;
-
 import org.json.JSONArray;
-
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -37,6 +39,7 @@ import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
@@ -44,7 +47,7 @@ import android.graphics.BitmapFactory;
  * 
  * @see SystemUiHider
  */
-public class MainAct extends Activity {
+public class VotarMain extends Activity {
 	public static final int MEDIA_TYPE_IMAGE = 1;
 	public static final int MEDIA_TYPE_VIDEO = 2;
 
@@ -70,6 +73,8 @@ public class MainAct extends Activity {
 	
 	private static final long TIME_DIVIDE=100000;
 	public long datatimestamp=Long.MIN_VALUE/TIME_DIVIDE;
+	
+	public BitmapFactory.Options opt=null;
 	
 	private VotarWebServer votarwebserver;
 	public AssetManager assetMgr;
@@ -140,11 +145,12 @@ public class MainAct extends Activity {
 		if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
 			mainLayout.setOrientation(LinearLayout.HORIZONTAL);
 			controlLayout.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT,LayoutParams.MATCH_PARENT,1));
-			imageLayout.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT,1));
+			//imageLayout.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT,1));
 		} else if (orientation == Configuration.ORIENTATION_PORTRAIT){
 			mainLayout.setOrientation(LinearLayout.VERTICAL);
 			controlLayout.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT,1));
-			imageLayout.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT,LayoutParams.WRAP_CONTENT,1));
+			//imageLayout.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT,1));
+			//imageLayout.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT,LayoutParams.WRAP_CONTENT,1));
 		}
 	}
 
@@ -236,7 +242,6 @@ public class MainAct extends Activity {
     	public void onReceive(Context context, Intent intent) {
     		final String action = intent.getAction();
     		if (action.equals(WifiManager.NETWORK_STATE_CHANGED_ACTION)) {
-//    			Log.i("Votar MainAct", "Wifi update from onReceive");
     			updateWifiStatus();
     		}
     	}
@@ -256,17 +261,61 @@ public class MainAct extends Activity {
 		
 		@Override
 		protected Void doInBackground(Bitmap... photos) {
-			photo=photos[0];
+			// data is being updated and not ready for HTTP service, lock them
+			photoLock=new CountDownLatch(1);
+			pointsLock=new CountDownLatch(1);
+			datatimestamp=System.nanoTime()/TIME_DIVIDE;
+			
+			opt.inJustDecodeBounds = true;
+		    BitmapFactory.decodeFile(lastPhotoFilePath, opt);
+		    opt.inSampleSize=computeSampleSize(opt.outWidth, opt.outHeight);
+		    
+		    opt.inJustDecodeBounds = false;
+			photo=BitmapFactory.decodeFile(lastPhotoFilePath, opt);
+			if (photo==null)
+				return null;
+			
+			// handle orientation changes in photos
+			// inspired by MKJParekh answer on stackoverflow
+			// http://stackoverflow.com/questions/12299963/facing-orientation-issue-with-camera-captured-image-on-android-phones
+	        ExifInterface exif;
+			try {
+				exif = new ExifInterface(lastPhotoFilePath);
+			} catch (IOException e) {
+				// invalid photo format ?
+				return null;
+			}
+	        int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, 1);
+	        Log.e("orientation", "" + orientation);
+	        
+	        Matrix m = new Matrix();
+	        if ((orientation == ExifInterface.ORIENTATION_ROTATE_180)) {
+	            m.postRotate(180);
+	            Log.i("VotAR Main", "Orientation change: 70");
+	            photo = Bitmap.createBitmap(photo, 0, 0, photo.getWidth(), photo.getHeight(), m, true);
+	        } else if (orientation == ExifInterface.ORIENTATION_ROTATE_90) {
+	            m.postRotate(90);
+	            Log.i("VotAR Main", "Orientation change: 90");
+	            photo = Bitmap.createBitmap(photo, 0, 0, photo.getWidth(), photo.getHeight(), m, true);
+	        }
+	        else if (orientation == ExifInterface.ORIENTATION_ROTATE_270) {
+	        	m.postRotate(270);
+	            Log.i("VotAR Main", "Orientation change: 270");
+	            photo = Bitmap.createBitmap(photo, 0, 0, photo.getWidth(), photo.getHeight(), m, true);
+	        }
+			
+			photoLock.countDown();
 			prcount=new int[4];
 			mark=nativeAnalyze(photo, prcount);
 			return null;
 		}
+		
 		private void showProgressDialog(int step) {
 			switch (step) {
 			case 0:
-				mProgressDialog = new ProgressDialog(MainAct.this);
+				mProgressDialog = new ProgressDialog(VotarMain.this);
 				mProgressDialog.setTitle("Processing image");
-				mProgressDialog.setProgressNumberFormat("%1d%%");
+				//mProgressDialog.setProgressNumberFormat("%1d%%"); // not working on API level 9
 				mProgressDialog.setMax(100);
 				mProgressDialog.setProgress(0);
 				mProgressDialog.setIndeterminate(false);
@@ -275,25 +324,23 @@ public class MainAct extends Activity {
 				mProgressDialog.show();
 				break;
 			case 1:
-				mProgressDialog.setProgress(10);
-				mProgressDialog.setProgressNumberFormat("%1d%%");
+				mProgressDialog.setProgress(20);
+				float mpSize=(float)photo.getWidth()*photo.getHeight()/1000000;
+				mProgressDialog.setTitle("Processing image: "+new DecimalFormat("#.#").format(mpSize)+"mp");
 				mProgressDialog.setMessage("Preprocessing surface...");
 				break;
 			case 2:
-				mProgressDialog.setProgress(25);
-				mProgressDialog.setProgressNumberFormat("%1d%%");
+				mProgressDialog.setProgress(40);
 				mProgressDialog.setMessage("Examining color patterns...");
 				break;
 					
 			case 3:
 				mProgressDialog.setProgress(90);
-				mProgressDialog.setProgressNumberFormat("%1d%%");
 				mProgressDialog.setMessage("Compiling results...");
 				break;
 			case 4:
 				mProgressDialog.dismiss();
 				break;
-				
 			}
 		}
 
@@ -321,11 +368,27 @@ public class MainAct extends Activity {
 					bar[i].setProgress(prcount[i]);
 				}
 
-
+				writeJsonPoints(mark);
+				
+				if (photo.getWidth()>imageLayout.getWidth() && photo.getHeight()>imageLayout.getHeight()) {
+					int maxWidth, maxHeight;
+					if (photo.getWidth() / imageLayout.getWidth() > photo.getHeight() / imageLayout.getHeight()) {
+						// photo is large, limit to imageView width, preserve aspect ratio
+						maxWidth=imageLayout.getWidth();
+						maxHeight=photo.getHeight()/(photo.getWidth()/imageLayout.getWidth());
+					} else {
+						// photo is high, limit to imageview height, preserve aspect ratio
+						maxHeight=imageLayout.getHeight();
+						maxWidth=photo.getWidth()/(photo.getHeight()/imageLayout.getHeight());
+					}
+					Log.i("VotAR Main","Image resized for display: "+photo.getWidth()+"x"+photo.getHeight()
+							+" -> "+maxWidth+"x"+maxHeight+" [in "+imageLayout.getWidth()+"x"+imageLayout.getHeight()+"]");
+					photo=Bitmap.createScaledBitmap(photo, maxWidth, maxHeight, true);
+				}
+				
 				imageView.setImageBitmap(photo);
 			}
 
-			writeJsonPoints(mark);
 
 			pointsLock.countDown();
 			showProgressDialog(4);
@@ -341,16 +404,42 @@ public class MainAct extends Activity {
 			return;
 		JSONArray jsonmark=new JSONArray();
 		for (int i=0; i<mark.length; i++) {
-			JSONArray jsoncurrentmark=new JSONArray(Arrays.asList(new Integer[]{mark[i].x, mark[i].y, mark[i].pr}));
+			JSONArray jsoncurrentmark=new JSONArray(Arrays.asList(new Integer[]{mark[i].x*opt.inSampleSize, mark[i].y*opt.inSampleSize, mark[i].pr}));
 			jsonmark.put(jsoncurrentmark);
 		}
 		lastPointsJsonString=jsonmark.toString();		
+	}
+	
+	private int computeSampleSize(int w, int h) {
+		int pixelCount=w*h;
+		int allowedPixelCount;
+		long maxMemory = Runtime.getRuntime().maxMemory();
+		
+		// large memory devices are allowed bigger images
+		if (maxMemory<48000000) {
+			allowedPixelCount=4000000;
+		} else if (maxMemory<96000000) {
+			allowedPixelCount=5500000;
+		} else if (maxMemory<128000000) {
+			allowedPixelCount=7000000;
+		} else {
+			allowedPixelCount=16000000;
+		}
+		
+		if (pixelCount<=allowedPixelCount) {
+			return 1;
+		}
+		
+		// if the image is too large for processing
+		// we divide it's dimensions by 2,
+		// so it's pixelCount goes down 4, should be enough
+		return 2;
 	}
 
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		super.onActivityResult(requestCode, resultCode, data);
 		Bitmap photo=null;
-		BitmapFactory.Options opt = new BitmapFactory.Options();
+		opt = new BitmapFactory.Options();
 		opt.inPreferredConfig = Bitmap.Config.ARGB_8888;
 		Uri uri=null;
 		
@@ -379,16 +468,6 @@ public class MainAct extends Activity {
 		
 		lastPointsJsonString=null;
 		
-		// data is being updated and not ready for HTTP service, lock them
-		photoLock=new CountDownLatch(1);
-		pointsLock=new CountDownLatch(1);
-		datatimestamp=System.nanoTime()/TIME_DIVIDE;
-		
-		photo=BitmapFactory.decodeFile(lastPhotoFilePath, opt);
-		if (photo==null)
-			return;
-		
-		photoLock.countDown();
 		new AnalyzeTask().execute(photo);
 	}
 }

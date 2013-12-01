@@ -12,11 +12,11 @@ import android.util.Log;
 import fi.iki.elonen.NanoHTTPD;
 
 public class VotarWebServer extends NanoHTTPD {
-	private MainAct mainact;
+	private VotarMain mainact;
 	
 	public static final int SOCKET_READ_TIMEOUT = 65000;
 
-	public VotarWebServer(int port, MainAct mainact) {
+	public VotarWebServer(int port, VotarMain mainact) {
 		super(port);
 		this.mainact=mainact;
 		mainact.updateWifiStatus();
@@ -41,7 +41,7 @@ public class VotarWebServer extends NanoHTTPD {
 		String uri=session.getUri();
 	
 		
-		Log.i("Votar WebServer", "Request: "+uri);
+		//Log.i("Votar WebServer", "Request: "+uri);
 		
 		if (uri.equals("/photo")) {
 			if (mainact.photoLock==null) {

@@ -2,7 +2,7 @@
 <resources>
 
     <string name="app_name">VotAR</string>
-    <string name="photo_of_the_audience">Photo of the audience</string>
+    <string name="photo_of_the_audience">This is an alpha (unfinished) version for testing purposes only. Use the camera button to begin.</string>
     <string name="gallery">Gallery</string>
     <string name="camera">Camera</string>
     <string name="vote_a">a</string>

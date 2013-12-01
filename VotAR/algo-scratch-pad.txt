@@ -1,3 +1,8 @@
+
+
+-----------------------------------------------------
+COMPUTATIONS
+------------------------------------------
 Formula to compute hue difference : primary component part
 first formula:
 --------------------------
@@ -127,7 +132,7 @@ diff=diff*0x100
 <- this part is still up for discussion
 
 
-
+-------------------------
 -------------------------
 Implementation of remote result display with embedded nanohttpd in the app + web browser for the presentation laptop
 
@@ -191,3 +196,24 @@ Web GUI :
 
 
 storage of multiple results is not included in version 1
+
+-----------------------------------------------------------------------
+-----------------------------------------------------------------------
+Possible features :
+
+Help screen (v1!)
+
+Options : (v1.1)
+ - wifi on/off
+ - port
+ - web password
+ - move gallery import to options  (v1)
+
+Local history (1+ year project)
+ - daily / monthly timeline
+ - select old photos
+ - switch app GUI to java-served html5
+
+remote/cloud server (2+ years project) :
+ - sync device <-> server <-> laptop
+ - prepare questions ahead

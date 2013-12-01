@@ -35,7 +35,7 @@
                 android:cropToPadding="true"
                 android:gravity="left"
                 android:scaleType="fitCenter"
-                android:src="@drawable/square1" />
+                android:src="@drawable/first_screen" />
 
         </LinearLayout>
 

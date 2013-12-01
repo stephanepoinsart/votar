@@ -3,10 +3,11 @@
     package="com.poinsart.votar"
     android:versionCode="1"
     android:versionName="1.0"
+    android:largeHeap="true"
     >
 
     <uses-sdk
-        android:minSdkVersion="16"
+        android:minSdkVersion="9"
         android:targetSdkVersion="19" />
 
     <!-- to take photo of the audience -->
@@ -28,7 +29,7 @@
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name">
         <activity
-            android:name="com.poinsart.votar.MainAct"
+            android:name="com.poinsart.votar.VotarMain"
 			android:configChanges="orientation|keyboardHidden|screenSize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

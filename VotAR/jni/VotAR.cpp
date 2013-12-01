@@ -1,7 +1,29 @@
 /*
- * Started from "ivo" very useful post helpful post :
+    VotAR : Vote with Augmented reality
+    Copyright (C) 2013 Stephane Poinsart <s@poinsart.com>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/*
+ * VotAR.cpp : native image parsing functions
+ */
+
+
+/*
+ * jni bitmap handling was started from "ivo" very useful post helpful post :
  * http://stackoverflow.com/questions/2881939/android-read-png-image-without-alpha-and-decode-as-argb-8888
- *
  */
 
 #include <jni.h>
@@ -23,8 +45,6 @@ extern "C" {
 
 #define MAX_MARK_COUNT						512
 
-#define PIXEL_STEP_TO_CENTER				8
-
 #define AVERAGE_DIFFERENCE_ALLOWED			(0xB8)
 
 #define SATURATION_NOMINATOR				(0x400)
@@ -35,7 +55,7 @@ extern "C" {
 
 #define HUEDIFF_LINEAR_MULT					(0x03)
 
-#define ALGO_STATS
+//#define ALGO_STATS
 
 #ifdef ALGO_STATS
 int algo_stats_hues[4];
@@ -47,6 +67,7 @@ int algo_stats_mindiff, algo_stats_minpr;
 
 
 int prcount[4]={0,0,0,0};
+int pixelsteptocenter;
 
 float startTime;
 
@@ -169,7 +190,7 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 
 
 	switch (cindex) {
-	case 1 :
+	case 2 :
 		// yellow,
 		// r and  g are strong, b is weak
 
@@ -204,7 +225,7 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 		huediff=huediff*0x100/sat;
 
 		break;
-	case 2 :
+	case 1 :
 		// cyan,
 		// g and b are strong, r is weak
 		if (r>=g || r>=b)
@@ -308,7 +329,7 @@ int findOnePattern(unsigned int *workpixels, unsigned int width, unsigned int he
 	unsigned int uc[4]; // unshifted colors
 	// Green, Yellow, Cyan, Magenta
 	unsigned int ct=x+width*y;
-	const unsigned int hstep=PIXEL_STEP_TO_CENTER;
+	const unsigned int hstep=pixelsteptocenter;
 	unsigned int vstep=width*hstep;
 
 	// we use x/y as the center of this pattern, each table cell match a sub-square
@@ -341,14 +362,14 @@ int findOnePattern(unsigned int *workpixels, unsigned int width, unsigned int he
 		for (int i=0; i<4; i++) {
 			// check every square
 			// pr=0
-			//  G |            | Y          |             |
+			//  G |            | C          |             |
 			// -------  ->  -------  ->  --------  ->  -------
-			//    |            |            | C         M |
+			//    |            |            | Y         M |
 			//
 			// pr=1
 			//  M |            | G          |             |
 			// -------  ->  -------  ->  --------  ->  -------
-			//    |            |            | Y         C |
+			//    |            |            | C         Y |
 			//
 			// ...
 			diff+=checkSquare(uc[(pr+i)%4], i);
@@ -369,9 +390,6 @@ int findOnePattern(unsigned int *workpixels, unsigned int width, unsigned int he
 						algo_stats_hues[0]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_hues[1]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_hues[2]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_hues[3]*100/AVERAGE_DIFFERENCE_ALLOWED,
 						algo_stats_sat[0]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_sat[1]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_sat[2]*100/AVERAGE_DIFFERENCE_ALLOWED,algo_stats_sat[3]*100/AVERAGE_DIFFERENCE_ALLOWED,
 						x,y);
-			/*if (diff>AVERAGE_DIFFERENCE_ALLOWED) {
-				markPixel(inpixels,width, height, x, y,0xFFFFFFFF,4);
-			}*/
 		}
 #endif
 
@@ -422,10 +440,32 @@ void findDebugPattern(unsigned int *inpixels, unsigned int *workpixels, unsigned
 unsigned int matchcolors[4]={
 		0x0000FF00,
 		0x00FF00FF,
-		0x00FFFF00,
-		0x0000FFFF
+		0x0000FFFF,
+		0x00FFFF00
 };
 
+// compute squared color distance from color vector
+inline int colorDiff(unsigned int c1, unsigned int c2) {
+	int		r1 = (int)(c1 & 0x000000FF),
+			g1 = (int)((c1 >> 8) & 0x000000FF),
+			b1 = (int)((c1 >> 16) & 0x000000FF);
+	int		r2 = (int)(c2 & 0x000000FF),
+			g2 = (int)((c2 >> 8) & 0x000000FF),
+			b2 = (int)((c2 >> 16) & 0x000000FF);
+	return (r1-r2)*(r1-r2)+(g1-g2)*(g1-g2)+(b1-b2)*(b1-b2);
+}
+
+
+#define COLORDIFF_STEP	1
+#define COLORDIFF_ALLOWED_DELTA 0x24*0x24
+inline void burnIfEdge(unsigned int *inpixels, unsigned int *workpixels, unsigned int width, unsigned int height, int i, int j) {
+	if (colorDiff(workpixels[i-COLORDIFF_STEP+j*width], workpixels[i+COLORDIFF_STEP+j*width])>COLORDIFF_ALLOWED_DELTA
+			|| colorDiff(workpixels[i+(j-COLORDIFF_STEP)*width], workpixels[i+(j+COLORDIFF_STEP)*width])>COLORDIFF_ALLOWED_DELTA ) {
+		workpixels[i+j*width]|=0xFF000000;
+// debug : edge burning
+//markPixel(inpixels,width, height, i, j,0x00000000,6);
+	}
+}
 
 void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned int width, unsigned int height, int mark[MAX_MARK_COUNT][3], int *markcount) {
 	// the fun part start here... bruteforce every position
@@ -435,13 +475,31 @@ void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned 
 	// j=7 -> . . .  -> . . . -> . . . -> + . .
 	// j=9 -> . . .     . . .    . . .    . . .
 	int maxdim=max(width, height);
-	int burnradius=10+maxdim/256;
+
+	// 22 pixels at 8mp, 20 at 5mp
+	// it needs to be that large to protect against double-counting
+	int burnradius=8+maxdim/256;
+
+	// 8 pixels at 8mp, 7 pixels at 5mp
+	// large step helps on blurry pictures but too large miss small patterns or double-count some overlapped patterns
+	pixelsteptocenter=2+maxdim/512;
+	Log_i("step: %d, burn radius: %d", pixelsteptocenter, burnradius);
 
 	*markcount=0;
-	for (int j=PIXEL_STEP_TO_CENTER; j<height-PIXEL_STEP_TO_CENTER; j+=2) {
-		for (int i=PIXEL_STEP_TO_CENTER; i<width-PIXEL_STEP_TO_CENTER; i+=2) {
+	for (int j=pixelsteptocenter; j<height-pixelsteptocenter; j+=2) {
+		for (int i=pixelsteptocenter; i<width-pixelsteptocenter; i+=2) {
+			// basic edge detection to burn pixels on an edge
+			burnIfEdge(inpixels, workpixels, width, height, i, j);
+		}
+	}
+	for (int j=pixelsteptocenter; j<height-pixelsteptocenter; j+=2) {
+		for (int i=pixelsteptocenter; i<width-pixelsteptocenter; i+=2) {
 			// skip burned pixels
-			if ((workpixels[i+width*j] & 0xFF000000) == 0xFF000000)
+			if (	   (workpixels[(i-pixelsteptocenter)+width*(j-pixelsteptocenter)] & 0xFF000000)
+					|| (workpixels[(i+pixelsteptocenter)+width*(j-pixelsteptocenter)] & 0xFF000000)
+					|| (workpixels[(i+pixelsteptocenter)+width*(j+pixelsteptocenter)] & 0xFF000000)
+					|| (workpixels[(i-pixelsteptocenter)+width*(j+pixelsteptocenter)] & 0xFF000000)
+				)
 				continue;
 			int pr=findOnePattern(workpixels, width, height, i,j,inpixels);
 			if (pr>=0) {
@@ -500,7 +558,7 @@ jobject javaInteger(JNIEnv* env, jint value) {
 }
 
 
-JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_MainAct_00024AnalyzeTask_nativeAnalyze(JNIEnv *env, jobject task, jobject bitmap, jintArray jprcount)
+JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTask_nativeAnalyze(JNIEnv *env, jobject task, jobject bitmap, jintArray jprcount)
 {
 	AndroidBitmapInfo info;
 	unsigned int *pixels, *workpixels;
