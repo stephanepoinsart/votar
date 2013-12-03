@@ -159,7 +159,7 @@ body {
 </div>
 </div>
 <div id="line2">&nbsp;</div>
-<div id="footerblock"><div id="footerdeco">&nbsp;</div><div id="footertext"><a href="http://votar.mightwork.org">http://votar.mightwork.org</a></div></div>
+<div id="footerblock"><div id="footerdeco">&nbsp;</div><div id="footertext"><a href="http://votar.libre-innovation.org">http://votar.libre-innovation.org</a></div></div>
 <script>
 var datatimestamp=-999999;
 
@@ -250,10 +250,10 @@ function markProcess() {
 			try {
 				mark=JSON.parse(this.responseText);
 			} catch (e) {
-				showMessage(STATUS_ERROR, "impossible de traiter la liste de points");
+				showMessage(STATUS_ERROR, "can't parse the point list");
 			}
 			if (mark==null) {
-				showMessage(STATUS_ERROR, "impossible de traiter la liste de points");
+				showMessage(STATUS_ERROR, "can't parse the point list");
 			}
 			drawwait--;
 			markDraw();
