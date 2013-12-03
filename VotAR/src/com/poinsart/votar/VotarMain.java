@@ -145,12 +145,9 @@ public class VotarMain extends Activity {
 		if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
 			mainLayout.setOrientation(LinearLayout.HORIZONTAL);
 			controlLayout.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT,LayoutParams.MATCH_PARENT,1));
-			//imageLayout.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT,1));
 		} else if (orientation == Configuration.ORIENTATION_PORTRAIT){
 			mainLayout.setOrientation(LinearLayout.VERTICAL);
 			controlLayout.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT,1));
-			//imageLayout.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT,1));
-			//imageLayout.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT,LayoutParams.WRAP_CONTENT,1));
 		}
 	}
 
@@ -372,14 +369,14 @@ public class VotarMain extends Activity {
 				
 				if (photo.getWidth()>imageLayout.getWidth() && photo.getHeight()>imageLayout.getHeight()) {
 					int maxWidth, maxHeight;
-					if (photo.getWidth() / imageLayout.getWidth() > photo.getHeight() / imageLayout.getHeight()) {
+					if (((float) photo.getWidth() / imageLayout.getWidth()) > ((float) photo.getHeight() / imageLayout.getHeight())) {
 						// photo is large, limit to imageView width, preserve aspect ratio
 						maxWidth=imageLayout.getWidth();
-						maxHeight=photo.getHeight()/(photo.getWidth()/imageLayout.getWidth());
+						maxHeight=photo.getHeight()*imageLayout.getWidth()/photo.getWidth();
 					} else {
 						// photo is high, limit to imageview height, preserve aspect ratio
 						maxHeight=imageLayout.getHeight();
-						maxWidth=photo.getWidth()/(photo.getHeight()/imageLayout.getHeight());
+						maxWidth=photo.getWidth()*imageLayout.getHeight()/photo.getHeight();
 					}
 					Log.i("VotAR Main","Image resized for display: "+photo.getWidth()+"x"+photo.getHeight()
 							+" -> "+maxWidth+"x"+maxHeight+" [in "+imageLayout.getWidth()+"x"+imageLayout.getHeight()+"]");
