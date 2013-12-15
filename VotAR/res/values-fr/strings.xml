@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
     <string name="app_name">VotAR</string>
     <string name="photo_of_the_audience">Ceci est une version alpha (non finie) réservée aux tests. Utilisez le bouton appareil photo pour commencer.</string>
     <string name="gallery">Gallerie</string>
@@ -11,5 +10,6 @@
     <string name="vote_d">d</string>
     <string name="nowificon">Pas de connection WiFi</string>
     <string name="wifidisabled">WiFi désactivé dans les options de VotAR</string>
-
+    <string name="quit_title">Quitter ?</string>
+    <string name="quit_message">Voulez-vous quitter VotAR ?</string>
 </resources>

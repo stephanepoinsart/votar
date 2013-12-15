@@ -1,3 +1,21 @@
+/*
+    VotAR : Vote with Augmented reality
+    Copyright (C) 2013 Stephane Poinsart <s@poinsart.com>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 package com.poinsart.votar;
 
 import java.io.File;
@@ -8,17 +26,18 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.concurrent.CountDownLatch;
 import java.lang.System;
+
 import org.json.JSONArray;
+
 import android.annotation.SuppressLint;
-import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -32,6 +51,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.AssetManager;
@@ -141,6 +161,28 @@ public class VotarMain extends Activity {
 			votarwebserver.stop();
 	}
 	
+	@Override
+	public void onBackPressed() {
+		AlertDialog.Builder alert = new AlertDialog.Builder(this);
+
+		alert.setTitle(getString(R.string.quit_title));
+		alert.setMessage(getString(R.string.quit_message));
+		
+		alert.setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+		public void onClick(DialogInterface dialog, int whichButton) {
+				finish();
+			}
+		});
+
+		alert.setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int whichButton) {
+				//
+			}
+		});
+
+		alert.show();
+	}
+	
 	private void adjustLayoutForOrientation(int orientation) {
 		if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
 			mainLayout.setOrientation(LinearLayout.HORIZONTAL);
@@ -212,7 +254,7 @@ public class VotarMain extends Activity {
 			wifiLabel.setText("http://"+wifiIp+":51285");
 			return true;
 		}
-		wifiLabel.setText(R.string.nowificon);
+		wifiLabel.setText(getString(R.string.nowificon));
 		return false;
     }
     
@@ -223,7 +265,6 @@ public class VotarMain extends Activity {
     	IntentFilter intentFilter = new IntentFilter();
     	intentFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
     	registerReceiver(broadcastReceiver, intentFilter);
-//Log.i("Votar MainAct", "Wifi update from onResume");
     	updateWifiStatus();
     }
 
@@ -311,29 +352,28 @@ public class VotarMain extends Activity {
 			switch (step) {
 			case 0:
 				mProgressDialog = new ProgressDialog(VotarMain.this);
-				mProgressDialog.setTitle("Processing image");
+				mProgressDialog.setTitle(getString(R.string.title_processing_1));
 				//mProgressDialog.setProgressNumberFormat("%1d%%"); // not working on API level 9
 				mProgressDialog.setMax(100);
 				mProgressDialog.setProgress(0);
 				mProgressDialog.setIndeterminate(false);
 				mProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-				mProgressDialog.setMessage("Initializing...");
+				mProgressDialog.setMessage(getString(R.string.processing_1));
 				mProgressDialog.show();
 				break;
 			case 1:
 				mProgressDialog.setProgress(20);
 				float mpSize=(float)photo.getWidth()*photo.getHeight()/1000000;
-				mProgressDialog.setTitle("Processing image: "+new DecimalFormat("#.#").format(mpSize)+"mp");
-				mProgressDialog.setMessage("Preprocessing surface...");
+				mProgressDialog.setTitle(getString(R.string.title_processing_2)+new DecimalFormat("#.#").format(mpSize)+"mp");
+				mProgressDialog.setMessage(getString(R.string.processing_2));
 				break;
 			case 2:
 				mProgressDialog.setProgress(40);
-				mProgressDialog.setMessage("Examining color patterns...");
+				mProgressDialog.setMessage(getString(R.string.processing_3));
 				break;
-					
 			case 3:
 				mProgressDialog.setProgress(90);
-				mProgressDialog.setMessage("Compiling results...");
+				mProgressDialog.setMessage(getString(R.string.processing_4));
 				break;
 			case 4:
 				mProgressDialog.dismiss();
@@ -404,7 +444,7 @@ public class VotarMain extends Activity {
 			JSONArray jsoncurrentmark=new JSONArray(Arrays.asList(new Integer[]{mark[i].x*opt.inSampleSize, mark[i].y*opt.inSampleSize, mark[i].pr}));
 			jsonmark.put(jsoncurrentmark);
 		}
-		lastPointsJsonString=jsonmark.toString();		
+		lastPointsJsonString=jsonmark.toString();
 	}
 	
 	private int computeSampleSize(int w, int h) {
@@ -418,7 +458,7 @@ public class VotarMain extends Activity {
 		} else if (maxMemory<96000000) {
 			allowedPixelCount=5500000;
 		} else if (maxMemory<128000000) {
-			allowedPixelCount=7000000;
+			allowedPixelCount=9000000;
 		} else {
 			allowedPixelCount=16000000;
 		}

@@ -11,5 +11,12 @@
     <string name="vote_d">d</string>
     <string name="nowificon">No WiFi connection</string>
     <string name="wifidisabled">WiFi disabled in VotAR settings</string>
-
+    <string name="quit_title">Quit ?</string>
+    <string name="quit_message">Do you want to quit VotAR ?</string>
+	<string name="title_processing_1">Processing image</string>
+	<string name="title_processing_2">Processing image: </string>
+	<string name="processing_1">Initializing&#x2026;</string>
+	<string name="processing_2">Preprocessing surface&#x2026;</string>
+	<string name="processing_3">Examining color patterns&#x2026;</string>
+	<string name="processing_4">Compiling results&#x2026;</string>
 </resources>

@@ -201,13 +201,15 @@ storage of multiple results is not included in version 1
 -----------------------------------------------------------------------
 Possible features :
 
-Help screen (v1!)
+Quit with back button (v1.x)
 
-Options : (v1.1)
+Help screen (v2)
+
+Options : (v3)
  - wifi on/off
  - port
  - web password
- - move gallery import to options  (v1)
+ - move gallery import to options
 
 Local history (1+ year project)
  - daily / monthly timeline
