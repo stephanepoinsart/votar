@@ -24,8 +24,12 @@ import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.concurrent.CountDownLatch;
 import java.lang.System;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 
 import org.json.JSONArray;
 
@@ -235,17 +239,29 @@ public class VotarMain extends Activity {
 	    return mediaFile;
 	}
 	
+	
+	// mostly based on stackoverflow answer from ajma :
+	// http://stackoverflow.com/questions/9573196/how-to-get-the-ip-of-the-wifi-hotspot-in-android
     public String getWifiIp() {
-    	int ip;
-    	
-    	WifiManager wm=(WifiManager) getSystemService(Context.WIFI_SERVICE);
-    	WifiInfo wi=wm.getConnectionInfo();
-    	if (wi==null || wi.getNetworkId()==-1)
+    	Enumeration<NetworkInterface> en=null;
+    	try {
+    		 en = NetworkInterface.getNetworkInterfaces();
+    	} catch (SocketException e) {
     		return null;
-    	ip=wi.getIpAddress();
-    	if (ip==0x00000000)
-    		return null;
-    	return "" + (ip & 0xFF) + "." + ((ip >> 8) & 0xFF) + "." + ((ip >> 16) & 0xFF) + "." + ((ip >> 24 ) & 0xFF);
+    	}
+		while (en.hasMoreElements()) {
+			NetworkInterface intf = en.nextElement();
+			if (intf.getName().contains("wlan")) {
+				for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+					InetAddress inetAddress = enumIpAddr.nextElement();
+					if (!inetAddress.isLoopbackAddress() && (inetAddress.getAddress().length == 4)) {
+						//Log.d("VotAR Main", inetAddress.getHostAddress());
+						return inetAddress.getHostAddress().toString();
+					}
+				}
+			}
+		}
+		return null;
     }
 
     public boolean updateWifiStatus() {
