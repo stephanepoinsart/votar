@@ -1,5 +1,4 @@
 /*
-    VotAR : Vote with Augmented reality
     Copyright (C) 2013 Stephane Poinsart <s@poinsart.com>
 
     This program is free software: you can redistribute it and/or modify
@@ -67,7 +66,7 @@ int algo_stats_mindiff, algo_stats_minpr;
 
 
 int prcount[4]={0,0,0,0};
-int pixelsteptocenter;
+int pixelsteptocenter, burnradius;
 
 float startTime;
 
@@ -100,10 +99,13 @@ void benchmarkElapsed(const char *text) {
 // on reading outer pixels
 // we need to average each component separately to avoid overflowing on others
 // will only work if inpixels != outpixels because the average method need stable neighbors
-void average33(unsigned int *inpixels, unsigned int *outpixels,  unsigned int width, unsigned int height) {
-	unsigned int pixelcount=width*height;
-	for (int i=width+1; i<pixelcount-width-1; i++) {
-		outpixels[i]= (
+void average33(unsigned int *inpixels, unsigned int *outpixels,  int width, int height) {
+	int endx=width-1,
+		endy=height-1;
+	for (int y=1; y<endy; y++) {
+		for (int x=1; x<endx; x++) {
+			int i=x+y*width;
+			outpixels[i]= (
 					((((inpixels[i-1-width] & 0x00FF0000) + (inpixels[i-width] & 0x00FF0000) + (inpixels[i+1-width] & 0x00FF0000)	// Row -1, component 1
 					+ (inpixels[i-1]       & 0x00FF0000) + (inpixels[i]       & 0x00FF0000) + (inpixels[i+1]       & 0x00FF0000)	// Row  0, component 1
 					+ (inpixels[i-1+width] & 0x00FF0000) + (inpixels[i+width] & 0x00FF0000) + (inpixels[i+1+width] & 0x00FF0000))	// Row +1, component 1
@@ -122,6 +124,7 @@ void average33(unsigned int *inpixels, unsigned int *outpixels,  unsigned int wi
 					/ 9) & 0x000000FF))
 				& 0x00FFFFFF;
 		;
+		}
 	}
 }
 
@@ -131,9 +134,9 @@ void average33(unsigned int *inpixels, unsigned int *outpixels,  unsigned int wi
 // - allocate memory for a new image
 // - average pixels in 3x3 squares into the new "working image"
 // - return the resulting image
-unsigned int *generateWorkingImage(unsigned int *inpixels, unsigned int width, unsigned int height) {
-	unsigned int pixelcount = width * height;
-	unsigned int *workpixels = (unsigned int*) malloc(sizeof(int) * pixelcount);
+unsigned int *generateWorkingImage(unsigned int *inpixels, int width, int height) {
+	int pixelcount = width * height;
+	unsigned int *workpixels = (unsigned int*) malloc(sizeof(unsigned int) * pixelcount);
 	if (!workpixels) {
 		Log_e("Failed to allocate %d bytes as a work image",pixelcount);
 		return workpixels;
@@ -147,13 +150,18 @@ unsigned int *generateWorkingImage(unsigned int *inpixels, unsigned int width, u
 
 
 // simple function to put a dot on an image position
-void markPixel(unsigned int *pixels, unsigned int width, unsigned int height, unsigned int x, unsigned int y, unsigned int color, unsigned int size) {
+void markPixel(unsigned int *pixels, int width, int height, int x, int y, unsigned int color, int size) {
 	// make sure no memory overflow in this loop (the mark can be close to top/bottom edge and radius bigger than PIXEL_STEP_TO_CENTER)
 
+	int jstart=max(y-size,0), // crop top
+		jend=min(y+size, height), // crop bot
+		istart=max(x-size,0), // crop left
+		iend=min(x+size, width); // crop right
+
 	// no vertical bleed
-	for (int j=max(y-size,0); j<min(y+size, height); j++)
+	for (int j=jstart; j<jend; j++)
 		//no horizontal bleed
-		for (int i=max(x-size,0); i<min(x+size, width); i++)
+		for (int i=istart; i<iend; i++)
 			pixels[i+j*width]=color;
 }
 
@@ -273,27 +281,7 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 		//sat+=4;
 
 		huediff=huediff*0x100/sat;
-		/*
-		// blue,
-		// r and g are weak, b is strong
-		if (b<=r || b<=g)
-			return 0x400;
-		sat=b-min(r,g);
-		if (r>g) {
-			sat=b-g;
-			huediff=(r-g) * HUEDIFF_LINEAR_MULT/(b-r);
-		} else {
-			sat=b-r;
-			huediff=(g-r) * HUEDIFF_LINEAR_MULT/(b-g);
-		}
-		sat+=4;
 
-		huediff=huediff*0x100/sat;
-		*/
-
-		// manual adjustment: blue is a single component color
-		// and has been found to be much darker in photo experiments
-		// so we give it a noticeable boost in contrast to compensate
 		break;
 	}
 	diff+=huediff;
@@ -325,7 +313,7 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 	return diff;
 }
 
-int findOnePattern(unsigned int *workpixels, unsigned int width, unsigned int height, unsigned int x, unsigned int y,unsigned int *inpixels) {
+int findOnePattern(unsigned int *workpixels, int width, int height, int x, int y,unsigned int *inpixels) {
 	unsigned int uc[4]; // unshifted colors
 	// Green, Yellow, Cyan, Magenta
 	unsigned int ct=x+width*y;
@@ -374,7 +362,7 @@ int findOnePattern(unsigned int *workpixels, unsigned int width, unsigned int he
 			// ...
 			diff+=checkSquare(uc[(pr+i)%4], i);
 #ifndef ALGO_STATS
-			// if the color difference for all the subsquares is too big, it's over for this pattern rotation so don't waist time
+			// if the color difference for all the subsquares is too big, it's over for this pattern rotation so don't waste time
 			if (diff>AVERAGE_DIFFERENCE_ALLOWED+0x20)
 				break;
 #endif
@@ -458,7 +446,7 @@ inline int colorDiff(unsigned int c1, unsigned int c2) {
 
 #define COLORDIFF_STEP	1
 #define COLORDIFF_ALLOWED_DELTA 0x24*0x24
-inline void burnIfEdge(unsigned int *inpixels, unsigned int *workpixels, unsigned int width, unsigned int height, int i, int j) {
+inline void burnIfEdge(unsigned int *inpixels, unsigned int *workpixels, int width, int height, int i, int j) {
 	if (colorDiff(workpixels[i-COLORDIFF_STEP+j*width], workpixels[i+COLORDIFF_STEP+j*width])>COLORDIFF_ALLOWED_DELTA
 			|| colorDiff(workpixels[i+(j-COLORDIFF_STEP)*width], workpixels[i+(j+COLORDIFF_STEP)*width])>COLORDIFF_ALLOWED_DELTA ) {
 		workpixels[i+j*width]|=0xFF000000;
@@ -474,26 +462,24 @@ void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned 
 	// j=5 -> + . .     . + .    . . +    . . .
 	// j=7 -> . . .  -> . . . -> . . . -> + . .
 	// j=9 -> . . .     . . .    . . .    . . .
-	int maxdim=max(width, height);
 
-	// 22 pixels at 8mp, 20 at 5mp
-	// it needs to be that large to protect against double-counting
-	int burnradius=8+maxdim/256;
-
-	// 8 pixels at 8mp, 7 pixels at 5mp
-	// large step helps on blurry pictures but too large miss small patterns or double-count some overlapped patterns
-	pixelsteptocenter=2+maxdim/512;
-	Log_i("step: %d, burn radius: %d", pixelsteptocenter, burnradius);
+	// the exploration coordinates is based on the center, so we cant start at 0 because we are going to look left.
+	// we add "pixelsteptocenter" as a border around the area
+	// and then we add 1 extra pixel because average33 and burnIfEdges need their own margins
+	int startingx=pixelsteptocenter+max(1,COLORDIFF_STEP),
+		startingy=pixelsteptocenter+max(1,COLORDIFF_STEP),
+		endingx=width-pixelsteptocenter-max(1,COLORDIFF_STEP),
+		endingy=height-pixelsteptocenter-max(1,COLORDIFF_STEP);
 
 	*markcount=0;
-	for (int j=pixelsteptocenter; j<height-pixelsteptocenter; j+=2) {
-		for (int i=pixelsteptocenter; i<width-pixelsteptocenter; i+=2) {
+	for (int j=startingy; j<endingy; j+=2) {
+		for (int i=startingx; i<endingx; i+=2) {
 			// basic edge detection to burn pixels on an edge
 			burnIfEdge(inpixels, workpixels, width, height, i, j);
 		}
 	}
-	for (int j=pixelsteptocenter; j<height-pixelsteptocenter; j+=2) {
-		for (int i=pixelsteptocenter; i<width-pixelsteptocenter; i+=2) {
+	for (int j=startingy; j<endingy; j+=2) {
+		for (int i=startingx; i<endingx; i+=2) {
 			// skip burned pixels
 			if (	   (workpixels[(i-pixelsteptocenter)+width*(j-pixelsteptocenter)] & 0xFF000000)
 					|| (workpixels[(i+pixelsteptocenter)+width*(j-pixelsteptocenter)] & 0xFF000000)
@@ -623,6 +609,21 @@ JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTas
 	progress=javaInteger(env,1);
 	env->SetObjectArrayElement(progressArray, 0, progress);
 	env->CallVoidMethod(task, publishMethod, progressArray);
+
+
+	/////////////////////////////
+	// set some offsets that will be used latter
+	// if it's a high res photo, we assume larger pixel distances in the analysis
+
+	int maxdim=max(width, height);
+	// 22 pixels at 8mp, 20 at 5mp
+	// it needs to be that large to protect against double-counting
+	burnradius=8+maxdim/256;
+	// 8 pixels at 8mp, 7 pixels at 5mp
+	// large step helps on blurry pictures but too large miss small patterns or double-count some overlapped patterns
+	pixelsteptocenter=2+maxdim/512;
+	Log_i("step: %d, burn radius: %d", pixelsteptocenter, burnradius);
+
 
 
 	/////////////////////////////
