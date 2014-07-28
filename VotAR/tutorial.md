@@ -26,7 +26,8 @@ If you want live display on a laptop + video-projector, which is recommended :
 
 # Make the best of VotAR
 
-Explaining to your audience how it works :
+##Explaining to your audience how it works
+
 While VotAR is simple to use for the audience, there will still be a few people who might not get how it works, giving an optimal chance of using it correctly to your audience is important.
 - Write who it works before the first slide on the first question.
 - Explain it orally, and demonstrate it while holding a voting paper yourself
@@ -34,7 +35,7 @@ While VotAR is simple to use for the audience, there will still be a few people 
 - Display the question on a videoprojector, it's a lot easier if the question is kept on screen and the audience don't have to memorize it
 - Timing is important. Most errors come from people lifting the paper at the wrong moment : explain to the audience that you are going to announce just before taking the photo, so they can be ready just at the right moment.
 
-Get the best vote detection rate :
+## Get the best vote detection rate
 - good lighting and neutral white / ambient lighting helps to give a contrast boost and make the pictures less blurry
    * if the lighting is not neutral (i.e. yellow tint incandescent lighting), you can often try to adjust it with the smartphone camera features while in camera mode
 - large rooms can be a challenge if you can't view all the audience because of the camera angle.
@@ -44,7 +45,7 @@ Get the best vote detection rate :
    * if the problem can't be solved, alternate to take a different part of the audience each question so everyone can participate
  - Adjust the picture resolution, usually 5mp works best with most phones, and for some high end phones VotAR can use up to 8mp. Anything too big will be scaled down.
 
-== Important limitations and legal warnings ==
+# Important limitations and legal warnings
 - While VotAR usually get an impressively accurate result, there is still an error margin. Don't use it for "official votes" (i.e. voting on a strategic decision...). Those votes could be contested and you could be put in a delicate situation.
 - Taking a photo of an audience, and making it available is often subjected to legal regulation (usually an individual can forbid his photo to be taken, used or redistributed). Make sure you are in compliance with laws in your country and have all the required authorizations to proceed.
 - If you use the live results remote display feature, anyone on the same network can access your last photo and it's statistics (even if you put the VotAR application in the background). Create your own secure wifi network from your smartphone if you want to prevent those access.
