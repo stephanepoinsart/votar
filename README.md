@@ -9,8 +9,10 @@ An example is always easier to understand:
 
 *Insert an example image here*
 
-For end-user informations about VotAR, see: http://votar.libre-innovation.org (french)
+You can read the [tutorial](https://github.com/stephanepoinsart/votar/blob/master/tutorial.md)
+to learn more about VotAR.
 
+For end-user informations about VotAR, see: http://votar.libre-innovation.org (french).
 For any question about VotAR, ask: s@poinsart.com
 
 Author
