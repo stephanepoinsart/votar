@@ -1,14 +1,16 @@
 VotAR : Vote with Augmented Reality
 ===================================
 
-VotAR is an Android application that will analyze a photo (either from the camera or from the gallery)
-to find specific colored cards and thus create a simple voting system for large group of people.
+VotAR is an Augmented Reality audience Voting or audience survey system. Your audience hold some papers with a
+specific printed symbols to vote, and as the speaker you take a photo of it with this app, it will analyze the
+photo to count the votes.
 
 An example is always easier to understand:
 
 *Insert an example image here*
 
-For end-user informations about VotAR, see: http://votar.libre-innovation.org
+For end-user informations about VotAR, see: http://votar.libre-innovation.org (french)
+
 For any question about VotAR, ask: s@poinsart.com
 
 Author

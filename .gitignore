@@ -2,3 +2,8 @@
 /libs
 /obj
 /gen
+/.settings
+/.idea
+/.classpath
+/.project
+/.cproject
