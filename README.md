@@ -15,6 +15,16 @@ to learn more about VotAR.
 For end-user informations about VotAR, see: http://votar.libre-innovation.org (french).
 For any question about VotAR, ask: s@poinsart.com
 
+Contribute
+----------
+
+This application uses the Native Developer Kit to perform efficient computations on the images.
+Therefore if you want to contribute to this projet, you need to install and configure your IDE
+to use the NDK. You can follow the guide on the
+[official documentation](http://developer.android.com/ndk/guides/setup.html#install).
+
+
+
 Author
 ------
 
