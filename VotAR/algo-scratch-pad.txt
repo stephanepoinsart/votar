@@ -1,3 +1,20 @@
+Architecture idea for V2
+-------------------------------
+Local built in server :
+remote server
+ * History
+ * Data sync : high res photo, low res photo, points, scores, times, session
+ * View sync :
+   * all : update photo and score display, browse history, start new photo
+ * 2 way commands :
+   * push : on event, source device -> HTTP POST target device. 
+   * query : on event or timer, target device -> HTTP POST source device
+ * example use case :
+   * web browser query directly the android VotAR device (like current version)
+   * VotAR android device upload to a VotAR server, then live web browser query the server or LMS query the server to integrate onto course content. 
+-------------------------------
+
+
 
 
 -----------------------------------------------------
