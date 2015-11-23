@@ -5,10 +5,6 @@ VotAR is an Augmented Reality audience Voting or audience survey system. Your au
 specific printed symbols to vote, and as the speaker you take a photo of it with this app, it will analyze the
 photo to count the votes.
 
-An example is always easier to understand:
-
-*Insert an example image here*
-
 You can read the [tutorial](https://github.com/stephanepoinsart/votar/blob/master/tutorial.md)
 to learn more about VotAR.
 
