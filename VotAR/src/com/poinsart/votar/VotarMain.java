@@ -39,7 +39,6 @@ import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.media.ExifInterface;
 import android.net.Uri;
-import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -513,6 +512,10 @@ public class VotarMain extends Activity {
 		}
 		if (requestCode == CAMERA_REQUEST) {
 	 		uri = cameraFileUri;
+	 		if (uri==null) {
+	 			Log.w("VotAR camera", "Photo app replyed with CAMERA_REQUEST and OK status but without providing the photo");
+	 			return;
+	 		}
 	 		lastPhotoFilePath = uri.getPath();
 		}
 		
