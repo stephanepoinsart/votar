@@ -6,7 +6,7 @@ APP_OPTIM := debug
 
 LOCAL_MODULE    := VotAR
 LOCAL_SRC_FILES := VotAR.cpp
-LOCAL_LDLIBS := -llog -ljnigraphics
+LOCAL_LDLIBS := -llog -ljnigraphics -landroid
 
 LOCAL_FLAGS := -O2
 
