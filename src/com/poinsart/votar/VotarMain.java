@@ -303,14 +303,12 @@ public class VotarMain extends Activity {
 
 	
 	private class AnalyzeTask extends AsyncTask<Bitmap, Integer, Void> {
-		private Mark mark[];
-		private int prcount[];
-		private Bitmap photo;
+		private AnalyzeReturn ar=new AnalyzeReturn();
 		
 		private ProgressDialog mProgressDialog;
 		
 		// found in native code, check jni exports
-		public native Mark[] nativeAnalyze(Bitmap b, int prcount[]);
+		public native void nativeAnalyze(AnalyzeReturn ar);
 		
 		@Override
 		protected Void doInBackground(Bitmap... photos) {
@@ -324,8 +322,8 @@ public class VotarMain extends Activity {
 		    opt.inSampleSize=computeSampleSize(opt.outWidth, opt.outHeight);
 		    
 		    opt.inJustDecodeBounds = false;
-			photo=BitmapFactory.decodeFile(lastPhotoFilePath, opt);
-			if (photo==null)
+			ar.photo=BitmapFactory.decodeFile(lastPhotoFilePath, opt);
+			if (ar.photo==null)
 				return null;
 			
 			// handle orientation changes in photos
@@ -345,21 +343,20 @@ public class VotarMain extends Activity {
 	        if ((orientation == ExifInterface.ORIENTATION_ROTATE_180)) {
 	            m.postRotate(180);
 	            Log.i("VotAR Main", "Orientation change: 70");
-	            photo = Bitmap.createBitmap(photo, 0, 0, photo.getWidth(), photo.getHeight(), m, true);
+	            ar.photo = Bitmap.createBitmap(ar.photo, 0, 0, ar.photo.getWidth(), ar.photo.getHeight(), m, true);
 	        } else if (orientation == ExifInterface.ORIENTATION_ROTATE_90) {
 	            m.postRotate(90);
 	            Log.i("VotAR Main", "Orientation change: 90");
-	            photo = Bitmap.createBitmap(photo, 0, 0, photo.getWidth(), photo.getHeight(), m, true);
+	            ar.photo = Bitmap.createBitmap(ar.photo, 0, 0, ar.photo.getWidth(), ar.photo.getHeight(), m, true);
 	        }
 	        else if (orientation == ExifInterface.ORIENTATION_ROTATE_270) {
 	        	m.postRotate(270);
 	            Log.i("VotAR Main", "Orientation change: 270");
-	            photo = Bitmap.createBitmap(photo, 0, 0, photo.getWidth(), photo.getHeight(), m, true);
+	            ar.photo = Bitmap.createBitmap(ar.photo, 0, 0, ar.photo.getWidth(), ar.photo.getHeight(), m, true);
 	        }
 			
 			photoLock.countDown();
-			prcount=new int[4];
-			mark=nativeAnalyze(photo, prcount);
+			nativeAnalyze(ar);
 			return null;
 		}
 		
@@ -378,7 +375,7 @@ public class VotarMain extends Activity {
 				break;
 			case 1:
 				mProgressDialog.setProgress(20);
-				float mpSize=(float)photo.getWidth()*photo.getHeight()/1000000;
+				float mpSize=(float)ar.photo.getWidth()*ar.photo.getHeight()/1000000;
 				mProgressDialog.setTitle(getString(R.string.title_processing_2)+new DecimalFormat("#.#").format(mpSize)+"mp");
 				mProgressDialog.setMessage(getString(R.string.processing_2));
 				break;
@@ -407,8 +404,10 @@ public class VotarMain extends Activity {
 		
 		@Override
 		protected void onPostExecute(Void unused) {
+			int[] prcount=ar.prcount;
+			Bitmap photo=ar.photo;
 			// nativeAnalyze returns null if anything goes wrong, just silently ignore
-			if (prcount!=null && mark!=null) {
+			if (prcount!=null && ar.mark!=null) {
 				int max=0;
 				for (int i=0; i<4; i++) {
 					if (prcount[i]>max)
@@ -420,7 +419,7 @@ public class VotarMain extends Activity {
 					bar[i].setProgress(prcount[i]);
 				}
 
-				writeJsonPoints(mark);
+				writeJsonPoints(ar.mark);
 				
 				if (photo.getWidth()>imageLayout.getWidth() && photo.getHeight()>imageLayout.getHeight()) {
 					int maxWidth, maxHeight;
@@ -513,7 +512,7 @@ public class VotarMain extends Activity {
 		if (requestCode == CAMERA_REQUEST) {
 	 		uri = cameraFileUri;
 	 		if (uri==null) {
-	 			Log.w("VotAR camera", "Photo app replyed with CAMERA_REQUEST and OK status but without providing the photo");
+				Log.w("VotAR camera", "Photo app replied with CAMERA_REQUEST and OK status but without providing the photo");
 	 			return;
 	 		}
 	 		lastPhotoFilePath = uri.getPath();

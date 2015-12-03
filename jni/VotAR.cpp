@@ -518,50 +518,74 @@ void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned 
 // from Sattvik Software & Technology Resources, Ltd. Co.
 // https://github.com/sattvik/decafbot/blob/master/ndk/jni/decafbot.c
 jobject javaInteger(JNIEnv* env, jint value) {
-	static jclass integerClass;
-	static jmethodID valueOfMethod;
+	jclass integerClass;
+	jmethodID valueOfMethod;
 
 	/* get class for Integer */
-	if(integerClass == NULL) {
-		integerClass = env->FindClass("java/lang/Integer");
-		if (integerClass == NULL) {
-			Log_e("Failed to find class for Integer");
-			return NULL;
-		}
+	integerClass = env->FindClass("java/lang/Integer");
+	if (integerClass == NULL) {
+		Log_e("Failed to find class for Integer");
+		return NULL;
 	}
 
 	/* get Integer.valueOf(int) method */
-	if(valueOfMethod == NULL) {
-		valueOfMethod = env->GetStaticMethodID(integerClass, "valueOf", "(I)Ljava/lang/Integer;");
-		if (valueOfMethod == NULL) {
-			Log_e("Failed to find static method Integer.valueOf(int)");
-			return NULL;
-		}
+	valueOfMethod = env->GetStaticMethodID(integerClass, "valueOf", "(I)Ljava/lang/Integer;");
+	if (valueOfMethod == NULL) {
+		Log_e("Failed to find static method Integer.valueOf(int)");
+		return NULL;
 	}
 
 	/* do the conversion */
 	return env->CallStaticObjectMethod(integerClass, valueOfMethod, value);
 }
 
+jobjectArray globalJmarkArray=NULL;
+/*jintArray globalJprcount=NULL;
+jobject globalBitmap=NULL;*/
 
-JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTask_nativeAnalyze(JNIEnv *env, jobject task, jobject bitmap, jintArray jprcount)
+JNIEXPORT void JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTask_free(JNIEnv *env) {
+	if (globalJmarkArray) {
+		env->DeleteGlobalRef(globalJmarkArray);
+		globalJmarkArray=NULL;
+	}/*
+	if (globalJprcount) {
+		env->DeleteGlobalRef(globalJprcount);
+		globalJprcount=NULL;
+	}
+	if (globalBitmap)
+		env->DeleteGlobalRef(globalBitmap);*/
+}
+
+JNIEXPORT void JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTask_nativeAnalyze(JNIEnv *env, jobject task, jobject ar)
 {
 	AndroidBitmapInfo info;
 	unsigned int *pixels, *workpixels;
 	unsigned int width, height, pixelcount;
-
 	int mark[MAX_MARK_COUNT][3];
 	int markcount;
-	jboolean isCopy;
+	jboolean isCopy=0;
+
+	Java_com_poinsart_votar_VotarMain_00024AnalyzeTask_free(env);
 
 	Log_i("Now in nativeAnalyze code");
 	benchmarkStart();
 
 	jclass taskClass = env->GetObjectClass(task);
+	if(taskClass==NULL) {
+		Log_e("Internal Error: failed to find class for object task");
+		return;
+	}
+	jclass arClass = env->GetObjectClass(ar);
+	if(arClass==NULL) {
+		Log_e("Internal Error: failed to find class for object ar");
+		return;
+	}
+
+
 	jmethodID publishMethod = env->GetMethodID(taskClass, "publishProgress", "([Ljava/lang/Object;)V");
 	if(publishMethod==NULL) {
-		Log_e("Internal Error: failed to find java method com/poinsart/votar/Mark");
-		return NULL;
+		Log_e("Internal Error: failed to find java method publishProgress ([Ljava/lang/Object;)V");
+		return;
 	}
 
 	jobject progress;
@@ -569,26 +593,70 @@ JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTas
 	jclass jobjectArrayClass = env->FindClass("[Ljava/lang/Object;");
 	if (jobjectArrayClass == NULL) {
 		Log_e("Failed to find class for Object[]");
-		return NULL;
+		return;
 	}
 	jclass jIntegerClass = env->FindClass("java/lang/Integer");
 	if (jIntegerClass == NULL) {
 		Log_e("Failed to find class for Integer");
-		return NULL;
+		return;
 	}
+
+	jclass jmarkClass=env->FindClass("com/poinsart/votar/Mark");
+	if (jmarkClass==NULL) {
+		Log_e("Internal Error: failed to find java class com/poinsart/votar/Mark");
+		return;
+	}
+
 	jobjectArray progressArray = env->NewObjectArray(1, jIntegerClass, NULL);
 	if (progressArray == NULL) {
 		Log_e("Failed to allocate object array for published progress.");
-		return NULL;
+		return;
 	}
+
+	// get fields of the AnalyzeReturn class, into appropriate C types
+
+	// photo
+	jfieldID photoField = env->GetFieldID(arClass, "photo", "Landroid/graphics/Bitmap;");
+	if (photoField == NULL) {
+		Log_e("Failed to find field photo.");
+		return;
+	}
+	jobject photo=env->GetObjectField(ar, photoField);
+	if (photo == NULL) {
+		Log_e("Failed to read field photo.");
+		return;
+	}
+
+	// prcount[]
+	jfieldID prcountField = env->GetFieldID(arClass, "prcount", "[I");
+	if (prcountField == NULL) {
+		Log_e("Failed to find field prcount.");
+		return;
+	}
+	jintArray jprcount=(jintArray)env->GetObjectField(ar, prcountField);
+	if (jprcount == NULL) {
+		Log_e("Failed to read prcount photo.");
+		return;
+	}
+
+
+	// mark[]
+	jfieldID markField = env->GetFieldID(arClass, "mark", "[Lcom/poinsart/votar/Mark;");
+	if (markField == NULL) {
+		Log_e("Failed to find field mark.");
+		return;
+	}
+
 
 	prcount[0]=prcount[1]=prcount[2]=prcount[3]=0;
 
+	//globalBitmap=bitmap=(jobject)env->NewGlobalRef(bitmap);
+
 	/////////////////////////////
 	// initialize pixels array
-	if (AndroidBitmap_getInfo(env, bitmap, &info) < 0) {
+	if (AndroidBitmap_getInfo(env, photo, &info) < 0) {
 		Log_e("Failed to get Bitmap info");
-		return NULL;
+		return;
 	}
 	width=info.width;
 	height=info.height;
@@ -597,13 +665,12 @@ JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTas
 
 	if (info.format != ANDROID_BITMAP_FORMAT_RGBA_8888) {
 		Log_e("Incompatible Bitmap format");
-		return NULL;
+		return;
 	}
 
 	void** voidpointer=(void**) &pixels;
-	if (AndroidBitmap_lockPixels(env, bitmap, voidpointer) < 0) {
+	if (AndroidBitmap_lockPixels(env, photo, voidpointer) < 0) {
 		Log_e("Failed to lock the pixels of the Bitmap");
-		return NULL;
 	}
 
 	progress=javaInteger(env,1);
@@ -631,7 +698,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTas
 	benchmarkElapsed("various initialization stuff");
 	workpixels=generateWorkingImage(pixels, width, height);
 	if (!workpixels)
-		return NULL;
+		return;
 
 	progress=javaInteger(env,2);
 	env->SetObjectArrayElement(progressArray, 0, progress);
@@ -647,18 +714,17 @@ JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTas
 	benchmarkElapsed("findAllPatterns");
 	free(workpixels);
 
-	if(AndroidBitmap_unlockPixels(env, bitmap) < 0) {
+	if(AndroidBitmap_unlockPixels(env, photo) < 0) {
 		Log_e("Failed to unlock the pixels of the Bitmap");
-		return NULL;
+		return;
 	}
-
 
 	/////////////////////////////
 	// return prcount[4] to java through jprcount array argument
 	jint *eprcount=env->GetIntArrayElements(jprcount, &isCopy);
 	if (eprcount==NULL) {
 		Log_e("Internal Error: failed on GetIntArrayElements(jprcount, &isCopy) ");
-		return NULL;
+		return;
 	}
 	eprcount[0]=prcount[0];
 	eprcount[1]=prcount[1];
@@ -666,30 +732,21 @@ JNIEXPORT jobjectArray JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTas
 	eprcount[3]=prcount[3];
 	env->ReleaseIntArrayElements(jprcount, eprcount, JNI_COMMIT);
 
-
-	/////////////////////////////
-	// return marks[] to java through jobject[] return value
-	jclass jmarkClass=env->FindClass("com/poinsart/votar/Mark");
-	if (jmarkClass==NULL) {
-		Log_e("Internal Error: failed to find java class com/poinsart/votar/Mark");
-		return NULL;
-	}
-
 	jmethodID jmarkConstructor=env->GetMethodID(jmarkClass, "<init>", "(III)V");
 	if (jmarkConstructor==NULL) {
 		Log_e("Internal Error: failed to find constructor for java class com/poinsart/votar/Mark");
-		return NULL;
+		return;
 	}
 	jobjectArray jmarkArray=env->NewObjectArray(markcount, jmarkClass, NULL);
 	for (int i=0; i<markcount; i++) {
 		jobject jmarkCurrent=env->NewObject(jmarkClass, jmarkConstructor, mark[i][0], mark[i][1], mark[i][2]);
 		if (jmarkCurrent==NULL) {
 			Log_e("Internal Error: failed to create jmark object (out of memory ?)");
-			return NULL;
+			return;
 		}
 		env->SetObjectArrayElement(jmarkArray, i, jmarkCurrent);
 	}
-
-	return jmarkArray;
+	globalJmarkArray=(jobjectArray) env->NewGlobalRef(jmarkArray);
+	env->SetObjectField(ar, markField,globalJmarkArray);
 }
 }
