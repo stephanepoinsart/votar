@@ -25,7 +25,7 @@
 
     <uses-sdk
         android:minSdkVersion="9"
-        android:targetSdkVersion="19" />
+        android:targetSdkVersion="23" />
 
     <!-- to take photo of the audience -->
 	<uses-permission android:name="android.permission.CAMERA"/>
