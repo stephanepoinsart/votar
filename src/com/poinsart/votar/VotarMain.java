@@ -308,7 +308,7 @@ public class VotarMain extends Activity {
 		private ProgressDialog mProgressDialog;
 		
 		// found in native code, check jni exports
-		public native void nativeAnalyze(AnalyzeReturn ar);
+		public native boolean nativeAnalyze(AnalyzeReturn ar);
 		
 		@Override
 		protected Void doInBackground(Bitmap... photos) {
@@ -406,6 +406,11 @@ public class VotarMain extends Activity {
 		protected void onPostExecute(Void unused) {
 			int[] prcount=ar.prcount;
 			Bitmap photo=ar.photo;
+			if (photo==null) {
+				mProgressDialog.dismiss();
+				Log.w("VotAR camera", "Something has gone wront with the photo processing (NativeAnalyze failed to return the bitmap data)");
+				return;
+			}
 			// nativeAnalyze returns null if anything goes wrong, just silently ignore
 			if (prcount!=null && ar.mark!=null) {
 				int max=0;
