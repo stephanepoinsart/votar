@@ -19,4 +19,11 @@
 	<string name="processing_2">Preprocessing surface&#x2026;</string>
 	<string name="processing_3">Examining color patterns&#x2026;</string>
 	<string name="processing_4">Compiling results&#x2026;</string>
+	
+	<string name="error_title">An unplaned issue ?</string>
+	<string name="error_createphotodir">Failed to create the photo directory</string>
+	<string name="error_nobitmapdata">Something has gone wront with the photo processing (NativeAnalyze failed to return the bitmap data</string>
+	<string name="error_nocamerareturn">The photo app exited without sending back any photo to VotAR</string>
+	<string name="error_nocamerareturn2">The photo app exited without sending back any photo to VotAR (2)</string>
+	<string name="error_nowebserver">The internal webserver could not be started, remote display wont be available</string>
 </resources>

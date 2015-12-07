@@ -102,6 +102,25 @@ public class VotarMain extends Activity {
 	private VotarWebServer votarwebserver;
 	public AssetManager assetMgr;
 	
+	public void errormsg(String message) {
+		Log.w("VotAR error", message);
+		AlertDialog.Builder dlgAlert  = new AlertDialog.Builder(this);
+
+		dlgAlert.setMessage(message);
+		dlgAlert.setTitle(getString(R.string.error_title));
+        dlgAlert.setPositiveButton("OK", null);
+        dlgAlert.setCancelable(true);
+        dlgAlert.create().show();
+
+        dlgAlert.setPositiveButton("Ok",
+                new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+
+            }
+        });
+
+	}
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		this.requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -153,7 +172,7 @@ public class VotarMain extends Activity {
 		try {
 			votarwebserver.start();
 		} catch (IOException e) {
-			Log.w("Votar MainAct", "The webserver could not be started, remote display wont be available");
+			this.errormsg(getString(R.string.error_nowebserver));
 		}
 	}
 	
@@ -201,13 +220,13 @@ public class VotarMain extends Activity {
 		adjustLayoutForOrientation(newConfig.orientation);
 	}
 
-	private static Uri getOutputMediaFileUri(int type){
+	private Uri getOutputMediaFileUri(int type){
 	      return Uri.fromFile(getOutputMediaFile(type));
 	}
 
 	/** Create a File for saving an image or video */
 	@SuppressLint("SimpleDateFormat")
-	private static File getOutputMediaFile(int type){
+	private File getOutputMediaFile(int type){
 	    // To be safe, you should check that the SDCard is mounted
 	    // using Environment.getExternalStorageState() before doing this.
 
@@ -219,7 +238,7 @@ public class VotarMain extends Activity {
 	    // Create the storage directory if it does not exist
 	    if (! mediaStorageDir.exists()){
 	        if (! mediaStorageDir.mkdirs()){
-	            Log.w("VotAR camera", "failed to create directory");
+	        	this.errormsg(getString(R.string.error_createphotodir));
 	            return null;
 	        }
 	    }
@@ -408,7 +427,7 @@ public class VotarMain extends Activity {
 			Bitmap photo=ar.photo;
 			if (photo==null) {
 				mProgressDialog.dismiss();
-				Log.w("VotAR camera", "Something has gone wront with the photo processing (NativeAnalyze failed to return the bitmap data)");
+				VotarMain.this.errormsg(getString(R.string.error_nobitmapdata));
 				return;
 			}
 			// nativeAnalyze returns null if anything goes wrong, just silently ignore
@@ -517,14 +536,16 @@ public class VotarMain extends Activity {
 		if (requestCode == CAMERA_REQUEST) {
 	 		uri = cameraFileUri;
 	 		if (uri==null) {
-				Log.w("VotAR camera", "Photo app replied with CAMERA_REQUEST and OK status but without providing the photo");
+	 			this.errormsg(getString(R.string.error_nocamerareturn));
 	 			return;
 	 		}
 	 		lastPhotoFilePath = uri.getPath();
 		}
 		
-		if (lastPhotoFilePath==null)
+		if (lastPhotoFilePath==null) {
+			this.errormsg(getString(R.string.error_nocamerareturn2));
 			return;
+		}
 		
 		lastPointsJsonString=null;
 		
