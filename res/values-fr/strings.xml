@@ -25,4 +25,7 @@
 	<string name="error_nocamerareturn">L\'application photo s\'est terminée sans renvoyer de photo à VotAR</string>
 	<string name="error_nocamerareturn2">L\'application photo s\'est terminée sans renvoyer de photo à VotAR (2)</string>
 	<string name="error_nowebserver">Le serveur web interne n\'a pas pu démarrer, l\'affichage des résultats à distance ne sera pas disponible</string>
+	<string name="error_photoapplaunch">Impossible d\'identifier l\'application photo à utiliser</string>
+	<string name="error_activityresult">L\'application photo a indiqué une erreur</string>
+	<string name="error_galleryuri">Impossible de déterminer l\'emplacement du fichier de l\'image choisie</string>
 </resources>

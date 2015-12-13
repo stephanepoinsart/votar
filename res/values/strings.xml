@@ -26,4 +26,7 @@
 	<string name="error_nocamerareturn">The photo app exited without sending back any photo to VotAR</string>
 	<string name="error_nocamerareturn2">The photo app exited without sending back any photo to VotAR (2)</string>
 	<string name="error_nowebserver">The internal webserver could not be started, remote display wont be available</string>
+	<string name="error_photoapplaunch">Unable to find the photo application to launch</string>
+	<string name="error_activityresult">The photo application repported an error</string>
+	<string name="error_galleryuri">Unable to get the file path of the selected photo</string>
 </resources>

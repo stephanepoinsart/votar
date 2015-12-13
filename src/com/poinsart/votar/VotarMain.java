@@ -152,8 +152,12 @@ public class VotarMain extends Activity {
 			@Override
 			public void onClick(View v) {
 				Intent cameraIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+				if (cameraIntent.resolveActivity(getPackageManager()) == null) {
+					VotarMain.this.errormsg(getString(R.string.error_photoapplaunch));
+					return;
+				}
 
-			    cameraFileUri = getOutputMediaFileUri(MEDIA_TYPE_IMAGE); // create a file to save the image
+			    cameraFileUri = Uri.fromFile(getOutputMediaFile(MEDIA_TYPE_IMAGE)); // create a file to save the image
 			    cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraFileUri); // set the image file name
 
 				startActivityForResult(cameraIntent, CAMERA_REQUEST);
@@ -219,11 +223,6 @@ public class VotarMain extends Activity {
 		super.onConfigurationChanged(newConfig);
 		adjustLayoutForOrientation(newConfig.orientation);
 	}
-
-	private Uri getOutputMediaFileUri(int type){
-	      return Uri.fromFile(getOutputMediaFile(type));
-	}
-
 	/** Create a File for saving an image or video */
 	@SuppressLint("SimpleDateFormat")
 	private File getOutputMediaFile(int type){
@@ -512,20 +511,26 @@ public class VotarMain extends Activity {
 	}
 
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		super.onActivityResult(requestCode, resultCode, data);
 		Bitmap photo=null;
 		opt = new BitmapFactory.Options();
 		opt.inPreferredConfig = Bitmap.Config.ARGB_8888;
 		Uri uri=null;
 		
 		
-		if (resultCode != RESULT_OK )
+		if (resultCode == RESULT_CANCELED ) {
 			return;
+		}
+		if (resultCode != RESULT_OK ) {
+			errormsg(getString(R.string.error_activityresult));
+			return;
+		}
 		
 		if (requestCode == GALLERY_REQUEST && data != null && data.getData() != null) {
 	        uri = data.getData();
-	        if (uri == null)
+	        if (uri == null) {
+	        	errormsg(getString(R.string.error_galleryuri));
 	        	return;
+	        }
 	        //User had pick an image.
 	        Cursor cursor = getContentResolver().query(uri, new String[] { android.provider.MediaStore.Images.ImageColumns.DATA }, null, null, null);
 	        cursor.moveToFirst();
