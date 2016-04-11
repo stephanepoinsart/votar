@@ -540,20 +540,12 @@ jobject javaInteger(JNIEnv* env, jint value) {
 }
 
 jobjectArray globalJmarkArray=NULL;
-/*jintArray globalJprcount=NULL;
-jobject globalBitmap=NULL;*/
 
 JNIEXPORT void JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTask_free(JNIEnv *env) {
 	if (globalJmarkArray) {
 		env->DeleteGlobalRef(globalJmarkArray);
 		globalJmarkArray=NULL;
-	}/*
-	if (globalJprcount) {
-		env->DeleteGlobalRef(globalJprcount);
-		globalJprcount=NULL;
 	}
-	if (globalBitmap)
-		env->DeleteGlobalRef(globalBitmap);*/
 }
 
 JNIEXPORT jboolean JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTask_nativeAnalyze(JNIEnv *env, jobject task, jobject ar)
