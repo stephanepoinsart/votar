@@ -2,6 +2,8 @@
 <resources>
 
     <string name="app_name">VotAR</string>
+    
+	<string name="intro">Welcome to VotAR. Press the camera button to begin, or on this text to open a help page in your browser.</string>
     <string name="photo_of_the_audience">This is an alpha (unfinished) version for testing purposes only. Use the camera button to begin.</string>
     <string name="gallery">Gallery</string>
     <string name="camera">Camera</string>

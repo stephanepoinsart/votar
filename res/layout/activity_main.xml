@@ -37,25 +37,32 @@
          android:fitsSystemWindows.
     -->
 
-        <LinearLayout
-            android:id="@+id/imageLayout"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="horizontal" >
+    <RelativeLayout
+        android:id="@+id/relativeLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_weight="1" >
 
-            <ImageView
-                android:id="@+id/imageView"
-                android:layout_width="fill_parent"
-                android:layout_height="fill_parent"
-                android:adjustViewBounds="true"
-                android:contentDescription="@string/photo_of_the_audience"
-                android:cropToPadding="true"
-                android:gravity="left"
-                android:scaleType="centerInside"
-                android:src="@drawable/first_screen" />
+        <ImageView
+            android:id="@+id/imageView"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:adjustViewBounds="true"
+            android:contentDescription="@string/photo_of_the_audience"
+            android:cropToPadding="true"
+            android:gravity="left"
+            android:scaleType="centerInside" />
 
-        </LinearLayout>
+        <TextView
+            android:id="@+id/introLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="false"
+            android:layout_margin="10dp"
+            android:text="@string/intro"
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+    </RelativeLayout>
 
         <LinearLayout
             android:id="@+id/controlLayout"
@@ -154,7 +161,6 @@
 
             <LinearLayout
                 android:id="@+id/fullscreen_content_controls"
-                style="?buttonBarStyle"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="@color/black_overlay"

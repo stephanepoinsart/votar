@@ -51,6 +51,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
 import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -88,8 +89,9 @@ public class VotarMain extends Activity {
 	private ImageView imageView;
 	private ProgressBar bar[]= {null, null, null, null};
 	private TextView barLabel[]={null, null, null, null};
-	public TextView wifiLabel=null;
-	private LinearLayout mainLayout, controlLayout, imageLayout;
+	public TextView wifiLabel=null, introLabel=null;
+	private LinearLayout mainLayout, controlLayout;
+	private RelativeLayout relativeLayout;
 	
 	public CountDownLatch photoLock;
 	public CountDownLatch pointsLock;
@@ -141,12 +143,21 @@ public class VotarMain extends Activity {
 		barLabel[3]=(TextView) findViewById(R.id.label_d);
 		
 		wifiLabel=(TextView) findViewById(R.id.label_wifi);
+		introLabel=((TextView)findViewById(R.id.introLabel));
 		
 		mainLayout=((LinearLayout)findViewById(R.id.mainLayout));
 		controlLayout=((LinearLayout)findViewById(R.id.controlLayout));
-		imageLayout=((LinearLayout)findViewById(R.id.imageLayout));
+		relativeLayout=((RelativeLayout)findViewById(R.id.relativeLayout));
+		
 		
 		adjustLayoutForOrientation(getResources().getConfiguration().orientation);
+		
+		findViewById(R.id.introLabel).setOnClickListener(new View.OnClickListener() {
+			public void onClick(View v) {
+				Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://votar.libre-innovation.org/help/"));
+				startActivity(browserIntent);
+			}
+		});
 
 		findViewById(R.id.buttonCamera).setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -444,22 +455,23 @@ public class VotarMain extends Activity {
 
 				writeJsonPoints(ar.mark);
 				
-				if (photo.getWidth()>imageLayout.getWidth() && photo.getHeight()>imageLayout.getHeight()) {
+				if (photo.getWidth()>relativeLayout.getWidth() && photo.getHeight()>relativeLayout.getHeight()) {
 					int maxWidth, maxHeight;
-					if (((float) photo.getWidth() / imageLayout.getWidth()) > ((float) photo.getHeight() / imageLayout.getHeight())) {
+					if (((float) photo.getWidth() / relativeLayout.getWidth()) > ((float) photo.getHeight() / relativeLayout.getHeight())) {
 						// photo is large, limit to imageView width, preserve aspect ratio
-						maxWidth=imageLayout.getWidth();
-						maxHeight=photo.getHeight()*imageLayout.getWidth()/photo.getWidth();
+						maxWidth=relativeLayout.getWidth();
+						maxHeight=photo.getHeight()*relativeLayout.getWidth()/photo.getWidth();
 					} else {
 						// photo is high, limit to imageview height, preserve aspect ratio
-						maxHeight=imageLayout.getHeight();
-						maxWidth=photo.getWidth()*imageLayout.getHeight()/photo.getHeight();
+						maxHeight=relativeLayout.getHeight();
+						maxWidth=photo.getWidth()*relativeLayout.getHeight()/photo.getHeight();
 					}
 					Log.i("VotAR Main","Image resized for display: "+photo.getWidth()+"x"+photo.getHeight()
-							+" -> "+maxWidth+"x"+maxHeight+" [in "+imageLayout.getWidth()+"x"+imageLayout.getHeight()+"]");
+							+" -> "+maxWidth+"x"+maxHeight+" [in "+relativeLayout.getWidth()+"x"+relativeLayout.getHeight()+"]");
 					photo=Bitmap.createScaledBitmap(photo, maxWidth, maxHeight, true);
 				}
 				
+				introLabel.setVisibility(View.GONE);
 				imageView.setImageBitmap(photo);
 			}
 
@@ -497,7 +509,7 @@ public class VotarMain extends Activity {
 		} else if (maxMemory<128000000) {
 			allowedPixelCount=9000000;
 		} else {
-			allowedPixelCount=16000000;
+			allowedPixelCount=24000000;
 		}
 		
 		if (pixelCount<=allowedPixelCount) {

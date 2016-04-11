@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">VotAR</string>
-    <string name="photo_of_the_audience">Ceci est une version alpha (non finie) réservée aux tests. Utilisez le bouton appareil photo pour commencer.</string>
+    
+	<string name="intro">Bienvenu sur VotAR. Appuyez le boutton appareil photo pour commencer, ou sur ce texte pour ouvrir une page d\'aide dans votre navigateur.</string>
+    <string name="photo_of_the_audience">Cette zone est utilisée pour afficher la photo du public</string>
     <string name="gallery">Gallerie</string>
     <string name="camera">Appareil photo</string>
     <string name="vote_a">a</string>
