@@ -4,7 +4,7 @@
     
 	<string name="intro">Bienvenu sur VotAR. Appuyez le boutton appareil photo pour commencer, ou sur ce texte pour ouvrir une page d\'aide dans votre navigateur.</string>
     <string name="photo_of_the_audience">Cette zone est utilisée pour afficher la photo du public</string>
-    <string name="gallery">Gallerie</string>
+    <string name="gallery">Galerie</string>
     <string name="camera">Appareil photo</string>
     <string name="vote_a">a</string>
     <string name="vote_b">b</string>
@@ -29,5 +29,6 @@
 	<string name="error_nowebserver">Le serveur web interne n\'a pas pu démarrer, l\'affichage des résultats à distance ne sera pas disponible</string>
 	<string name="error_photoapplaunch">Impossible d\'identifier l\'application photo à utiliser</string>
 	<string name="error_activityresult">L\'application photo a indiqué une erreur</string>
+	<string name="error_gallerydata">Impossible de déterminer l\'emplacement du fichier de l\'image choisie (data==null)</string>
 	<string name="error_galleryuri">Impossible de déterminer l\'emplacement du fichier de l\'image choisie</string>
 </resources>

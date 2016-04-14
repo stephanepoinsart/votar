@@ -24,11 +24,12 @@
 	
 	<string name="error_title">An unplaned issue ?</string>
 	<string name="error_createphotodir">Failed to create the photo directory</string>
-	<string name="error_nobitmapdata">Something has gone wront with the photo processing (NativeAnalyze failed to return the bitmap data</string>
+	<string name="error_nobitmapdata">Something has gone wrong with the photo processing (NativeAnalyze failed to return the bitmap data)</string>
 	<string name="error_nocamerareturn">The photo app exited without sending back any photo to VotAR</string>
 	<string name="error_nocamerareturn2">The photo app exited without sending back any photo to VotAR (2)</string>
 	<string name="error_nowebserver">The internal webserver could not be started, remote display wont be available</string>
 	<string name="error_photoapplaunch">Unable to find the photo application to launch</string>
 	<string name="error_activityresult">The photo application repported an error</string>
+	<string name="error_gallerydata">Unable to get the file path of the selected photo (data==null)</string>
 	<string name="error_galleryuri">Unable to get the file path of the selected photo</string>
 </resources>

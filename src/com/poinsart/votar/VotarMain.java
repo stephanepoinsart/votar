@@ -34,6 +34,7 @@ import java.net.SocketException;
 import org.json.JSONArray;
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
@@ -41,8 +42,10 @@ import android.media.ExifInterface;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
@@ -527,6 +530,7 @@ public class VotarMain extends Activity {
 		opt = new BitmapFactory.Options();
 		opt.inPreferredConfig = Bitmap.Config.ARGB_8888;
 		Uri uri=null;
+		String newPhotoFilePath=null;
 		
 		
 		if (resultCode == RESULT_CANCELED ) {
@@ -537,18 +541,20 @@ public class VotarMain extends Activity {
 			return;
 		}
 		
-		if (requestCode == GALLERY_REQUEST && data != null && data.getData() != null) {
-	        uri = data.getData();
-	        if (uri == null) {
+		if (requestCode == GALLERY_REQUEST) {
+			if (data==null || data.getData()==null) {
+	        	errormsg(getString(R.string.error_gallerydata));
+	        	return;
+			}
+	        uri=data.getData();
+	        if (uri==null) {
 	        	errormsg(getString(R.string.error_galleryuri));
 	        	return;
 	        }
-	        //User had pick an image.
-	        Cursor cursor = getContentResolver().query(uri, new String[] { android.provider.MediaStore.Images.ImageColumns.DATA }, null, null, null);
-	        cursor.moveToFirst();
-	        //Link to the image
-	        lastPhotoFilePath = cursor.getString(0);
-	        cursor.close();
+	        newPhotoFilePath=PathFromUri.getRealPathFromURI(this, uri);
+	        if (newPhotoFilePath==null) {
+	        	newPhotoFilePath=uri.getPath();
+	        }
 		}
 		if (requestCode == CAMERA_REQUEST) {
 	 		uri = cameraFileUri;
@@ -556,14 +562,15 @@ public class VotarMain extends Activity {
 	 			this.errormsg(getString(R.string.error_nocamerareturn));
 	 			return;
 	 		}
-	 		lastPhotoFilePath = uri.getPath();
+	 		newPhotoFilePath=uri.getPath();
 		}
 		
-		if (lastPhotoFilePath==null) {
+		if (newPhotoFilePath==null) {
 			this.errormsg(getString(R.string.error_nocamerareturn2));
 			return;
 		}
 		
+		lastPhotoFilePath=newPhotoFilePath;
 		lastPointsJsonString=null;
 		
 		new AnalyzeTask().execute(photo);
