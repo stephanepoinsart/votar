@@ -2,7 +2,8 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
-APP_OPTIM := debug
+APP_OPTIM := release
+#APP_OPTIM := debug
 
 LOCAL_MODULE    := VotAR
 LOCAL_SRC_FILES := VotAR.cpp
