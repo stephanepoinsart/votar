@@ -17,23 +17,34 @@
 
 /*
  * VotAR.cpp : native image parsing functions
+ *
+ * Small amount of vocabulary to understand this file :
+ *  - mark = when the algorithm detect a choice, i will call that a mark. a mark has a x and y coordinates, and a pattern rotation.
+ *  - "pr" = pattern rotation, a number from 0 to 4 to designate a choice a voter made, the whole pattern being what the symbol looks like.
+ *  - a square is 1/4th of a pattern
+ *
+ * File overview :
+ *  - simple_analyze : first "android agnostic" entry point
+ *  	- generateWorkingImage : allocate a "work" version for the photo that we can be messy with, and does some non-vital pre-processing (pixel averaging, edge detection)
+ *  	- findAllPatterns : iterate through most pixels of the photo
+ *  		- findOnePattern : given a pixel, iterate through the 4 rotations and 4 squares, and return a pr if it match
+ *  			- compare a pixel with a reference color, send back a difference value that determine if the color is unlikely to match
+ *
  */
 
 
-/*
- * jni bitmap handling was started from "ivo" very useful post helpful post :
- * http://stackoverflow.com/questions/2881939/android-read-png-image-without-alpha-and-decode-as-argb-8888
- */
-
-#include <jni.h>
 #include <string.h>
 #include <android/log.h>
 #include <android/bitmap.h>
 #include <math.h>
 #include <utility>
 #include <endian.h>
+#include <include/android.hpp>
 #include <stdlib.h>
 #include <time.h>
+
+#include "count-simple.hpp"
+#include "common.hpp"
 
 #define  LOG_TAG    "nativeAnalyze"
 #define  Log_i(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
@@ -42,16 +53,23 @@
 
 extern "C" {
 
-#define MAX_MARK_COUNT						512
 
+// total difference allowed
+// easy-to-adjust value
+// more = more stuff detected but also more false positives
+// less = less stuff detected but also less false positives
 #define AVERAGE_DIFFERENCE_ALLOWED			(0xB8)
 
+
+// used in the color matching formula to determine how bad it is
+// for each amount of difference in saturation
 #define SATURATION_NOMINATOR				(0x400)
 #define SATURATION_V_OFFSET					(0x05)
 #define SATURATION_H_OFFSET					(0x01)
 
 
-
+// used in the color matching formula to determine how bad it s
+// for each amount of hue difference from the reference color
 #define HUEDIFF_LINEAR_MULT					(0x03)
 
 //#define ALGO_STATS
@@ -63,35 +81,9 @@ int algo_stats_mindiff, algo_stats_minpr;
 #endif
 
 
-
-
-int prcount[4]={0,0,0,0};
-int pixelsteptocenter, burnradius;
-
-float startTime;
-
-
-void benchmarkStart() {
-	startTime = (float)clock()/CLOCKS_PER_SEC;
-	Log_i("Benchmark: 0.000 | Starting");
-}
-void benchmarkElapsed(const char *text) {
-	float endTime = (float)clock()/CLOCKS_PER_SEC;
-
-	float timeElapsed = endTime - startTime;
-	Log_i("Benchmark: %8f | %s", timeElapsed, text);
-}
-
-
-#define max(a,b) \
-  ({ __typeof__ (a) _a = (a); \
-      __typeof__ (b) _b = (b); \
-    _a > _b ? _a : _b; })
-
-#define min(a,b) \
-  ({ __typeof__ (a) _a = (a); \
-      __typeof__ (b) _b = (b); \
-    _a < _b ? _a : _b; })
+// the following variables are computed based on image width
+int pixelsteptocenter,	// to get the 4 colors in a mark, we look sideways from the center of the mark. This variable define how far the specific pixel we use will be
+	burnradius;			// when we have a mark, we burn pixel of the "working image" around it to make sure we don't detect false positive with 2 marks very close to each other. this is how much we burn.
 
 
 // will not work on first/last column/work but that's ok : those are not useful pixels
@@ -150,6 +142,7 @@ unsigned int *generateWorkingImage(unsigned int *inpixels, int width, int height
 
 
 // simple function to put a dot on an image position
+// we use it to draw on the display image, or to burn pixels on the working one
 void markPixel(unsigned int *pixels, int width, int height, int x, int y, unsigned int color, int size) {
 	// make sure no memory overflow in this loop (the mark can be close to top/bottom edge and radius bigger than PIXEL_STEP_TO_CENTER)
 
@@ -167,18 +160,29 @@ void markPixel(unsigned int *pixels, int width, int height, int x, int y, unsign
 
 
 
-/*
- * return the color delta
- * the function is somewhat long but will be called almost pixelcount time so inline is probably worth it
+/**
+ * determine how much the color a specific photo pixel differ from a given reference color (on of the 4)
+ *
+ * It's called for almost every pixel * every pattern
+ *
+ * We have a different test for each color :
+ * Given a particular color, we determine which component should be strong and which component should be weak.
+ * i.e. yellow = red and green, so r and g should be strong, b should be weak
+ *  - We discard immediately if we get the complete opposite of a weak / strong assumption
+ *  - In other cases, we use the shape of an inverse function to get a meaningful value of how different the color looks
+ *  - We then use the saturation to ponder the difference : a big hue difference on a low saturation pixel is not extremely significant
+ *  - We then re-add saturation as a positive element in the formula because if a pixel has really low saturation, it's less likely part of our colorful voting paper
+ *
+ *  - c = int with each byte as a color component (r,g,b,0)
+ *  - cindex = color index 0 to 3 as explained bellow
  */
 inline int checkSquare(unsigned int c, unsigned int cindex) {
-/*	const static unsigned int rcc[4][3]={ // reference colors components clockwise
-		//    R    G    B
-			{0x00,0xFF,0x00},		// green
-			{0xFF,0xFF,0x00},		// yellow
-			{0x00,0xFF,0xFF},		// cyan
-			{0xFF,0x00,0xFF},		// magenta
-		};*/
+	// cindex = reference colors components clockwise
+	//		  R    G    B
+	//		{0x00,0xFF,0x00},		0 -> green
+	//		{0xFF,0xFF,0x00},		1 -> yellow
+	//		{0x00,0xFF,0xFF},		2 -> cyan
+	//		{0xFF,0x00,0xFF},		3 -> magenta
 
 	// maths : https://www.desmos.com/calculator/b0g1wkqyju
 
@@ -187,13 +191,13 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 			g = (int)((c >> 8) & 0x000000FF),
 			b = (int)((c >> 16) & 0x000000FF);
 
-	// we have the sum and each components multiplied by 3, so the sum is like an average
-	//int csum=r+g+b;
+
+	// total match value accounting for hue difference and saturation
 	int diff=0;
 
 	// relative saturation, allow negative values (if we have the opposite hue)
 	int sat=0;
-	// absolute saturation
+	// arbitrary value of a hue difference
 	int huediff;
 
 
@@ -270,7 +274,7 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 		// r and b are weak, g is strong
 		if (g<=r || g<=b)
 			return 0x400;
-		//sat=g-min(r,b);
+
 		if (r>b) {
 			sat=g-b;
 			huediff=(r-b) * HUEDIFF_LINEAR_MULT/(g-r);
@@ -278,7 +282,6 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 			sat=g-r;
 			huediff=(b-r) * HUEDIFF_LINEAR_MULT/(g-b);
 		}
-		//sat+=4;
 
 		huediff=huediff*0x100/sat;
 
@@ -291,12 +294,11 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 
 	// adjusted 1/sat curve :
 	// extremely low saturation = dead square
-	// very low sat = high penalize much
-	// low, medium sat = penalize very little (to still work in dark rooms
+	// very low sat = penalize much
+	// low, medium sat = penalize very little (to still work in dark rooms)
 	// high sat = don't penalize, might give a small bonus
 	if (sat>=0) {
 		// a quite soft exponential curve for low values : x * x / 0x80
-//old formula :		diff+=(rsat*rsat/SATURATION_EXPONENT_DIVISOR) + (rsat/SATURATION_LINEAR_DIVISOR);
 		diff+=SATURATION_NOMINATOR/(sat+SATURATION_H_OFFSET)-SATURATION_V_OFFSET;
 	} else {
 		diff+=AVERAGE_DIFFERENCE_ALLOWED*2;
@@ -313,7 +315,14 @@ inline int checkSquare(unsigned int c, unsigned int cindex) {
 	return diff;
 }
 
-int findOnePattern(unsigned int *workpixels, int width, int height, int x, int y,unsigned int *inpixels) {
+
+/**
+ * given a particular pixel position on the photo, we check if it match a pattern rotation
+ * return the pr, or -1 if it does not match
+ *
+ * bruteforce every square for every rotation, not optimal but adequate
+ */
+int findOnePattern(unsigned int *inpixels, unsigned int *workpixels, int width, int height, int x, int y) {
 	unsigned int uc[4]; // unshifted colors
 	// Green, Yellow, Cyan, Magenta
 	unsigned int ct=x+width*y;
@@ -389,50 +398,9 @@ int findOnePattern(unsigned int *workpixels, int width, int height, int x, int y
 	return -1;
 }
 
-/*
-void findDebugPattern(unsigned int *inpixels, unsigned int *workpixels, unsigned int width, unsigned int height, int mark[MAX_MARK_COUNT][3], int *markcount) {
-	// the fun part start here... bruteforce every position
-	//          i=
-	//        5 7 9
-	// j=5 -> + . .     . + .    . . +    . . .
-	// j=7 -> . . .  -> . . . -> . . . -> + . .
-	// j=9 -> . . .     . . .    . . .    . . .
-
-	*markcount=0;
-
-	int i=1981;
-	int j=1532;
-			//markPixel(inpixels,width, height, i, j);
-			int pr=findOnePattern(workpixels, width, height, i,j,inpixels);
-			if (pr>=0) {
-				prcount[pr]++;
-				markPixel(inpixels,width, height, i, j,0xFF00FF00,3+width/256);
-				// also burn the workpixels to make sure we do not count the same square 2 times
-				markPixel(workpixels,width, height, i, j,0x00000000,9+width/1024);
-				// x, y, z
-				mark[*markcount][0]=i;
-				mark[*markcount][1]=j;
-				mark[*markcount][2]=pr;
-				(*markcount)++;
-				if (*markcount>=MAX_MARK_COUNT) {
-					Log_w("unlikely event : pattern count match limit reached, stopping before the image is completely processed");
-					goto SkipFindAllPaternsLoop;
-				}
-			}
-
-	SkipFindAllPaternsLoop:
-	Log_i("found patterns... 1: %d | 2: %d | 3: %d | 4: %d ", prcount[0], prcount[1], prcount[2], prcount[3]);
-}*/
-
-
-unsigned int matchcolors[4]={
-		0x0000FF00,
-		0x00FF00FF,
-		0x0000FFFF,
-		0x00FFFF00
-};
 
 // compute squared color distance from color vector
+// we compare 2 pixels this way for edge detection
 inline int colorDiff(unsigned int c1, unsigned int c2) {
 	int		r1 = (int)(c1 & 0x000000FF),
 			g1 = (int)((c1 >> 8) & 0x000000FF),
@@ -446,17 +414,17 @@ inline int colorDiff(unsigned int c1, unsigned int c2) {
 
 #define COLORDIFF_STEP	1
 #define COLORDIFF_ALLOWED_DELTA 0x24*0x24
+
+// if 2 nearby pixels have a significant color difference, we assume it's an edge and we burn it.
 inline void burnIfEdge(unsigned int *inpixels, unsigned int *workpixels, int width, int height, int i, int j) {
 	if (colorDiff(workpixels[i-COLORDIFF_STEP+j*width], workpixels[i+COLORDIFF_STEP+j*width])>COLORDIFF_ALLOWED_DELTA
 			|| colorDiff(workpixels[i+(j-COLORDIFF_STEP)*width], workpixels[i+(j+COLORDIFF_STEP)*width])>COLORDIFF_ALLOWED_DELTA ) {
 		workpixels[i+j*width]|=0xFF000000;
-// debug : edge burning
-//markPixel(inpixels,width, height, i, j,0x00000000,6);
 	}
 }
 
-void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned int width, unsigned int height, int mark[MAX_MARK_COUNT][3], int *markcount) {
-	// the fun part start here... bruteforce every position
+// the fun part start here... iterate through most pixels to pass to the pattern comparison function
+void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned int width, unsigned int height, int (&mark)[MAX_MARK_COUNT][3], int &markcount, int (&prcount)[4]) {
 	//          i=
 	//        5 7 9
 	// j=5 -> + . .     . + .    . . +    . . .
@@ -471,7 +439,14 @@ void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned 
 		endingx=width-pixelsteptocenter-max(1,COLORDIFF_STEP),
 		endingy=height-pixelsteptocenter-max(1,COLORDIFF_STEP);
 
-	*markcount=0;
+	unsigned int matchcolors[4]={
+			0x0000FF00,
+			0x00FF00FF,
+			0x0000FFFF,
+			0x00FFFF00
+	};
+
+	markcount=0;
 	for (int j=startingy; j<endingy; j+=2) {
 		for (int i=startingx; i<endingx; i+=2) {
 			// basic edge detection to burn pixels on an edge
@@ -487,7 +462,7 @@ void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned 
 					|| (workpixels[(i-pixelsteptocenter)+width*(j+pixelsteptocenter)] & 0xFF000000)
 				)
 				continue;
-			int pr=findOnePattern(workpixels, width, height, i,j,inpixels);
+			int pr=findOnePattern(inpixels, workpixels, width, height, i,j);
 			if (pr>=0) {
 				prcount[pr]++;
 
@@ -498,11 +473,11 @@ void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned 
 				markPixel(workpixels,width, height, i, j,0xFF000000,burnradius);
 
 				// this will be part of the function return values (converted to json)
-				mark[*markcount][0]=i;
-				mark[*markcount][1]=j;
-				mark[*markcount][2]=pr;
-				(*markcount)++;
-				if (*markcount>=MAX_MARK_COUNT) {
+				mark[markcount][0]=i;
+				mark[markcount][1]=j;
+				mark[markcount][2]=pr;
+				(markcount)++;
+				if (markcount>=MAX_MARK_COUNT) {
 					Log_w("unlikely event : pattern count match limit reached, stopping before the image is completely processed");
 					goto SkipFindAllPaternsLoop;
 				}
@@ -514,167 +489,32 @@ void findAllPatterns(unsigned int *inpixels, unsigned int *workpixels, unsigned 
 }
 
 
-// this function is a modified version of the BSD "toInt" in decaf project
-// from Sattvik Software & Technology Resources, Ltd. Co.
-// https://github.com/sattvik/decafbot/blob/master/ndk/jni/decafbot.c
-jobject javaInteger(JNIEnv* env, jint value) {
-	jclass integerClass;
-	jmethodID valueOfMethod;
-
-	/* get class for Integer */
-	integerClass = env->FindClass("java/lang/Integer");
-	if (integerClass == NULL) {
-		Log_e("Failed to find class for Integer");
-		return NULL;
-	}
-
-	/* get Integer.valueOf(int) method */
-	valueOfMethod = env->GetStaticMethodID(integerClass, "valueOf", "(I)Ljava/lang/Integer;");
-	if (valueOfMethod == NULL) {
-		Log_e("Failed to find static method Integer.valueOf(int)");
-		return NULL;
-	}
-
-	/* do the conversion */
-	return env->CallStaticObjectMethod(integerClass, valueOfMethod, value);
-}
-
-jobjectArray globalJmarkArray=NULL;
-
-JNIEXPORT void JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTask_free(JNIEnv *env) {
-	if (globalJmarkArray) {
-		env->DeleteGlobalRef(globalJmarkArray);
-		globalJmarkArray=NULL;
-	}
-}
-
-JNIEXPORT jboolean JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTask_nativeAnalyze(JNIEnv *env, jobject task, jobject ar)
-{
-	AndroidBitmapInfo info;
-	unsigned int *pixels, *workpixels;
-	unsigned int width, height, pixelcount;
-	int mark[MAX_MARK_COUNT][3];
-	int markcount;
-	jboolean isCopy=0;
-
-	Java_com_poinsart_votar_VotarMain_00024AnalyzeTask_free(env);
-
-	Log_i("Now in nativeAnalyze code");
-	benchmarkStart();
-
-	jclass taskClass = env->GetObjectClass(task);
-	if(taskClass==NULL) {
-		Log_e("Internal Error: failed to find class for object task");
-		return false;
-	}
-	jclass arClass = env->GetObjectClass(ar);
-	if(arClass==NULL) {
-		Log_e("Internal Error: failed to find class for object ar");
-		return false;
-	}
-
-
-	jmethodID publishMethod = env->GetMethodID(taskClass, "publishProgress", "([Ljava/lang/Object;)V");
-	if(publishMethod==NULL) {
-		Log_e("Internal Error: failed to find java method publishProgress ([Ljava/lang/Object;)V");
-		return false;
-	}
-
-	jobject progress;
-
-	jclass jobjectArrayClass = env->FindClass("[Ljava/lang/Object;");
-	if (jobjectArrayClass == NULL) {
-		Log_e("Failed to find class for Object[]");
-		return false;
-	}
-	jclass jIntegerClass = env->FindClass("java/lang/Integer");
-	if (jIntegerClass == NULL) {
-		Log_e("Failed to find class for Integer");
-		return false;
-	}
-
-	jclass jmarkClass=env->FindClass("com/poinsart/votar/Mark");
-	if (jmarkClass==NULL) {
-		Log_e("Internal Error: failed to find java class com/poinsart/votar/Mark");
-		return false;
-	}
-
-	jobjectArray progressArray = env->NewObjectArray(1, jIntegerClass, NULL);
-	if (progressArray == NULL) {
-		Log_e("Failed to allocate object array for published progress.");
-		return false;
-	}
-
-	// get fields of the AnalyzeReturn class, into appropriate C types
-
-	// photo
-	jfieldID photoField = env->GetFieldID(arClass, "photo", "Landroid/graphics/Bitmap;");
-	if (photoField == NULL) {
-		Log_e("Failed to find field photo.");
-		return false;
-	}
-	jobject photo=env->GetObjectField(ar, photoField);
-	if (photo == NULL) {
-		Log_e("Failed to read field photo.");
-		return false;
-	}
-
-	// prcount[]
-	jfieldID prcountField = env->GetFieldID(arClass, "prcount", "[I");
-	if (prcountField == NULL) {
-		Log_e("Failed to find field prcount.");
-		return false;
-	}
-	jintArray jprcount=(jintArray)env->GetObjectField(ar, prcountField);
-	if (jprcount == NULL) {
-		Log_e("Failed to read prcount photo.");
-		return false;
-	}
-
-
-	// mark[]
-	jfieldID markField = env->GetFieldID(arClass, "mark", "[Lcom/poinsart/votar/Mark;");
-	if (markField == NULL) {
-		Log_e("Failed to find field mark.");
-		return false;
-	}
-
-
-	prcount[0]=prcount[1]=prcount[2]=prcount[3]=0;
-
-	//globalBitmap=bitmap=(jobject)env->NewGlobalRef(bitmap);
-
-	/////////////////////////////
-	// initialize pixels array
-	if (AndroidBitmap_getInfo(env, photo, &info) < 0) {
-		Log_e("Failed to get Bitmap info");
-		return false;
-	}
-	width=info.width;
-	height=info.height;
-	pixelcount=width*height;
-	Log_i("Handling Bitmap in native code... Width: %d, Height: %d", width, height);
-
-	if (info.format != ANDROID_BITMAP_FORMAT_RGBA_8888) {
-		Log_e("Incompatible Bitmap format");
-		return false;
-	}
-
-	void** voidpointer=(void**) &pixels;
-	if (AndroidBitmap_lockPixels(env, photo, voidpointer) < 0) {
-		Log_e("Failed to lock the pixels of the Bitmap");
-	}
-
-	progress=javaInteger(env,1);
-	env->SetObjectArrayElement(progressArray, 0, progress);
-	env->CallVoidMethod(task, publishMethod, progressArray);
-
-
+/**
+ * Get the image and deliver the results of the vote by some image processing
+ * This is the only function that should be called directly from this file.
+ *
+ * All outputs arrays are preallocated and static, dont malloc them or overwrite their reference
+ *
+ * INPUTS :
+ *	- inpixel : raw array of pixels in the photo, from top left to bottom right, each pixel is coded as 4 bytes: R,G,B,0. For this version, it's displayed in the app, so you can draw on it.
+ *	- width : photo width
+ *	- height : photo height
+ *
+ * OUTPUTS :
+ *	- mark : array that contains up to MAX_MARK_COUNT vote results. Each vote result is coded as an array of 3 int :
+ *     - x coordinate
+ *     - y coordinate
+ *     - pattern rotation (0=A, 1=B, 2=C, 3=...)
+ *  - markcount : total number of marks found (number of people who voted and were detected)
+ *  - prcount : number of vote for each choice in an array with 4 int (0=A, 1=B, 2=C, 3=...)
+ */
+bool simple_analyze(unsigned int *inpixels, unsigned int width, unsigned int height, int (&mark)[MAX_MARK_COUNT][3], int &markcount, int (&prcount)[4]) {
 	/////////////////////////////
 	// set some offsets that will be used latter
 	// if it's a high res photo, we assume larger pixel distances in the analysis
-
+	unsigned int *workpixels;
 	int maxdim=max(width, height);
+
 	// 22 pixels at 8mp, 20 at 5mp
 	// it needs to be that large to protect against double-counting
 	burnradius=8+maxdim/256;
@@ -684,62 +524,23 @@ JNIEXPORT jboolean JNICALL Java_com_poinsart_votar_VotarMain_00024AnalyzeTask_na
 	Log_i("step: %d, burn radius: %d", pixelsteptocenter, burnradius);
 
 
-
-	/////////////////////////////
-	// most of the magic happens here
 	benchmarkElapsed("various initialization stuff");
-	workpixels=generateWorkingImage(pixels, width, height);
+
+	// allocate and prepare the image
+	workpixels=generateWorkingImage(inpixels, width, height);
 	if (!workpixels)
 		return false;
 
-	progress=javaInteger(env,2);
-	env->SetObjectArrayElement(progressArray, 0, progress);
-	env->CallVoidMethod(task, publishMethod, progressArray);
+	publish_progress(2);
 
+	// match everything
+	findAllPatterns(inpixels, workpixels, width, height, mark, markcount, prcount);
 
-	findAllPatterns(pixels,workpixels,width, height, mark, &markcount);
-	progress=javaInteger(env,3);
-	env->SetObjectArrayElement(progressArray, 0, progress);
-	env->CallVoidMethod(task, publishMethod, progressArray);
+	publish_progress(3);
 
-	//findDebugPattern(pixels,workpixels,width, height, mark, &markcount);
 	benchmarkElapsed("findAllPatterns");
 	free(workpixels);
-
-	if(AndroidBitmap_unlockPixels(env, photo) < 0) {
-		Log_e("Failed to unlock the pixels of the Bitmap");
-		return false;
-	}
-
-	/////////////////////////////
-	// return prcount[4] to java through jprcount array argument
-	jint *eprcount=env->GetIntArrayElements(jprcount, &isCopy);
-	if (eprcount==NULL) {
-		Log_e("Internal Error: failed on GetIntArrayElements(jprcount, &isCopy) ");
-		return false;
-	}
-	eprcount[0]=prcount[0];
-	eprcount[1]=prcount[1];
-	eprcount[2]=prcount[2];
-	eprcount[3]=prcount[3];
-	env->ReleaseIntArrayElements(jprcount, eprcount, JNI_COMMIT);
-
-	jmethodID jmarkConstructor=env->GetMethodID(jmarkClass, "<init>", "(III)V");
-	if (jmarkConstructor==NULL) {
-		Log_e("Internal Error: failed to find constructor for java class com/poinsart/votar/Mark");
-		return false;
-	}
-	jobjectArray jmarkArray=env->NewObjectArray(markcount, jmarkClass, NULL);
-	for (int i=0; i<markcount; i++) {
-		jobject jmarkCurrent=env->NewObject(jmarkClass, jmarkConstructor, mark[i][0], mark[i][1], mark[i][2]);
-		if (jmarkCurrent==NULL) {
-			Log_e("Internal Error: failed to create jmark object (out of memory ?)");
-			return false;
-		}
-		env->SetObjectArrayElement(jmarkArray, i, jmarkCurrent);
-	}
-	globalJmarkArray=(jobjectArray) env->NewGlobalRef(jmarkArray);
-	env->SetObjectField(ar, markField,globalJmarkArray);
 	return true;
 }
+
 }
