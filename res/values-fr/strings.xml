@@ -31,4 +31,7 @@
 	<string name="error_activityresult">L\'application photo a indiqué une erreur</string>
 	<string name="error_gallerydata">Impossible de déterminer l\'emplacement du fichier de l\'image choisie (data==null)</string>
 	<string name="error_galleryuri">Impossible de déterminer l\'emplacement du fichier de l\'image choisie</string>
+	<string name="error_extstorage">Impossible d\'utiliser le stockage de données android. Si vous avez configuré votre appareil pour enregistrer les données des applications sur une carte SD, vérifiez qu\'elle fonctionne correctement.</string>
+	<string name="error_filepermission">VotAR n\'a pas la permission pour ouvrir ce fichier. Si ce fichier est enregistré dans le répertoire d\'une autre application, essayez de le copier dans votre galerie d\'image.</string>
+	<string name="error_camerapermission">VotAR n\'a pas la permission d\'utiliser l\'appareil photo de l\'appareil.</string>
 </resources>

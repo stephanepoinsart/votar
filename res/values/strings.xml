@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
     <string name="app_name">VotAR</string>
     
 	<string name="intro">Welcome to VotAR. Press the camera button to begin, or on this text to open a help page in your browser.</string>
@@ -32,4 +31,7 @@
 	<string name="error_activityresult">The photo application repported an error</string>
 	<string name="error_gallerydata">Unable to get the file path of the selected photo (data==null)</string>
 	<string name="error_galleryuri">Unable to get the file path of the selected photo</string>
+	<string name="error_extstorage">Unable to use the android storage space. If you have configured your device to use an external SD card for application storage, check that it is working correctly.</string>
+	<string name="error_filepermission">VotAR does not have permission to open the photo file. If you opened a photo on an other application directory from the image gallery, try to copy it in your image gallery.</string>
+	<string name="error_camerapermission">VotAR does not have permission to use the device camera.</string>
 </resources>

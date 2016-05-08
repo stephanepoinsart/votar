@@ -33,6 +33,7 @@ import java.net.SocketException;
 
 import org.json.JSONArray;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -41,6 +42,7 @@ import android.media.ExifInterface;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -58,6 +60,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -72,7 +75,6 @@ import android.graphics.Matrix;
  */
 public class VotarMain extends Activity {
 	public static final int MEDIA_TYPE_IMAGE = 1;
-	public static final int MEDIA_TYPE_VIDEO = 2;
 
 	private Uri cameraFileUri;
 	public String lastPhotoFilePath=null;
@@ -85,6 +87,10 @@ public class VotarMain extends Activity {
 	 */
 	private static final int CAMERA_REQUEST=1;
 	private static final int GALLERY_REQUEST=2;
+	
+	private static final int CAMERA_PERMISSION=1;
+	private static final int STORAGE_PERMISSION=2;
+	
 	private ImageView imageView;
 	private ProgressBar bar[]= {null, null, null, null};
 	private TextView barLabel[]={null, null, null, null};
@@ -160,25 +166,21 @@ public class VotarMain extends Activity {
 		findViewById(R.id.buttonCamera).setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				Intent cameraIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
-				if (cameraIntent.resolveActivity(getPackageManager()) == null) {
-					VotarMain.this.errormsg(getString(R.string.error_photoapplaunch));
-					return;
+				if (Build.VERSION.SDK_INT<23) {
+					startCamera();
+				} else {
+					a60Camera();
 				}
-
-			    cameraFileUri = Uri.fromFile(getOutputMediaFile(MEDIA_TYPE_IMAGE)); // create a file to save the image
-			    cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraFileUri); // set the image file name
-
-				startActivityForResult(cameraIntent, CAMERA_REQUEST);
 			}
 		});
 		findViewById(R.id.buttonGallery).setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				Intent intent = new Intent();
-				intent.setType("image/*");
-				intent.setAction(Intent.ACTION_GET_CONTENT);
-				startActivityForResult(Intent.createChooser(intent, "Select Picture"), GALLERY_REQUEST);
+				if (Build.VERSION.SDK_INT<23) {
+					startGallery();
+				} else {
+					a60ExtStorage();
+				}
 			}
 		});
 		votarwebserver=new VotarWebServer(51285, this);
@@ -186,6 +188,23 @@ public class VotarMain extends Activity {
 			votarwebserver.start();
 		} catch (IOException e) {
 			this.errormsg(getString(R.string.error_nowebserver));
+		}
+	}
+	
+	void a60Camera() {
+		if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+			requestPermissions(new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION);
+		} else {
+			startCamera();
+		}
+	}
+	
+	void a60ExtStorage() {
+		if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)!=PackageManager.PERMISSION_GRANTED) {
+			// android >= 6 but permission already granted, so nothing more to try, fail
+			requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, STORAGE_PERMISSION);
+		} else {
+			startGallery();
 		}
 	}
 	
@@ -218,6 +237,31 @@ public class VotarMain extends Activity {
 		alert.show();
 	}
 	
+	private void startCamera() {
+		Intent cameraIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+		if (cameraIntent.resolveActivity(getPackageManager()) == null) {
+			VotarMain.this.errormsg(getString(R.string.error_photoapplaunch));
+			return;
+		}
+		File media=getOutputMediaFile(MEDIA_TYPE_IMAGE);
+		if (media==null) {
+			VotarMain.this.errormsg(getString(R.string.error_extstorage));
+			return;
+		}
+
+	    cameraFileUri = Uri.fromFile(media); // create a file to save the image
+	    cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraFileUri); // set the image file name
+
+		startActivityForResult(cameraIntent, CAMERA_REQUEST);
+	}
+	
+	private void startGallery() {
+		Intent intent = new Intent();
+		intent.setType("image/*");
+		intent.setAction(Intent.ACTION_GET_CONTENT);
+		startActivityForResult(Intent.createChooser(intent, "Select Picture"), GALLERY_REQUEST);
+	}
+	
 	private void adjustLayoutForOrientation(int orientation) {
 		if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
 			mainLayout.setOrientation(LinearLayout.HORIZONTAL);
@@ -232,32 +276,42 @@ public class VotarMain extends Activity {
 		super.onConfigurationChanged(newConfig);
 		adjustLayoutForOrientation(newConfig.orientation);
 	}
+	
 	/** Create a File for saving an image or video */
 	@SuppressLint("SimpleDateFormat")
 	private File getOutputMediaFile(int type){
 	    // To be safe, you should check that the SDCard is mounted
 	    // using Environment.getExternalStorageState() before doing this.
+		File mediaStorageDir;
+		
+		if (!Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
+			this.errormsg(getString(R.string.error_extstorage));
+			return null;
+		}
+		
+		if (Build.VERSION.SDK_INT<23) {
+			// This location works best if you want the created images to be shared
+			// between applications and persist after your app has been uninstalled.
+			mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
+					Environment.DIRECTORY_PICTURES), "VotAR");
+		} else {
+			mediaStorageDir = new File(getExternalFilesDir(null), "VotAR");
+		}
+		
+		// Create the storage directory if it does not exist
+		if (! mediaStorageDir.exists()){
+			if (! mediaStorageDir.mkdirs()){
+				this.errormsg(getString(R.string.error_createphotodir));
+				return null;
+			}
+		}
 
-	    File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
-	              Environment.DIRECTORY_PICTURES), "VotAR");
-	    // This location works best if you want the created images to be shared
-	    // between applications and persist after your app has been uninstalled.
-
-	    // Create the storage directory if it does not exist
-	    if (! mediaStorageDir.exists()){
-	        if (! mediaStorageDir.mkdirs()){
-	        	this.errormsg(getString(R.string.error_createphotodir));
-	            return null;
-	        }
-	    }
 
 	    // Create a media file name
 	    String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
 	    File mediaFile;
 	    if (type == MEDIA_TYPE_IMAGE){
 	        mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_"+ timeStamp + ".jpg");
-	    } else if(type == MEDIA_TYPE_VIDEO) {
-	        mediaFile = new File(mediaStorageDir.getPath() + File.separator + "VID_"+ timeStamp + ".mp4");
 	    } else {
 	        return null;
 	    }
@@ -521,9 +575,6 @@ public class VotarMain extends Activity {
 	}
 
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		Bitmap photo=null;
-		opt = new BitmapFactory.Options();
-		opt.inPreferredConfig = Bitmap.Config.ARGB_8888;
 		Uri uri=null;
 		String newPhotoFilePath=null;
 		
@@ -564,10 +615,40 @@ public class VotarMain extends Activity {
 			this.errormsg(getString(R.string.error_nocamerareturn2));
 			return;
 		}
+
 		
 		lastPhotoFilePath=newPhotoFilePath;
 		lastPointsJsonString=null;
 		
-		new AnalyzeTask().execute(photo);
+		if (!new File(newPhotoFilePath).canRead()) {
+			this.errormsg(getString(R.string.error_filepermission));
+			return;
+		} else {
+			Bitmap photo=null;
+			opt = new BitmapFactory.Options();
+			opt.inPreferredConfig = Bitmap.Config.ARGB_8888;
+			
+			new AnalyzeTask().execute(photo);
+		}
+	}
+	
+	@Override
+	public void onRequestPermissionsResult(int permsRequestCode, String[] permissions, int[] grantResults){
+		switch(permsRequestCode) {
+		case STORAGE_PERMISSION:
+			if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+				this.errormsg(getString(R.string.error_filepermission));
+			} else {
+				startGallery();
+			}
+			break;
+		case CAMERA_PERMISSION:
+			if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+				this.errormsg(getString(R.string.error_camerapermission));
+			} else {
+				startCamera();
+			}
+			break;
+		}
 	}
 }
