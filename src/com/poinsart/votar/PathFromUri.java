@@ -1,5 +1,7 @@
 package com.poinsart.votar;
 
+import java.io.File;
+
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.database.Cursor;
@@ -9,7 +11,11 @@ import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 
 public class PathFromUri {
-	// from Neil on stackoverflow : http://stackoverflow.com/a/28453016
+	// based on Neil on stackoverflow : http://stackoverflow.com/a/28453016
+	
+	// modified for more compatibility with different file managers
+	// i.e. : es explorer return a media:// path, gira returns a file:// path...
+	
 	/**
 	 * Gets the real path from file
 	 * @param context
@@ -34,17 +40,25 @@ public class PathFromUri {
 	 * @return
 	 */
 	protected static String getPathForPreV19(Context context, Uri contentUri) {
-	    String res = null;
+		String res = null;
 
-	    String[] proj = { MediaStore.Images.Media.DATA };
-	    Cursor cursor = context.getContentResolver().query(contentUri, proj, null, null, null);
-	    if(cursor.moveToFirst()){;
-	        int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
-	        res = cursor.getString(column_index);
-	    }
-	    cursor.close();
+		String[] proj = { MediaStore.Images.Media.DATA };
+		Cursor cursor = context.getContentResolver().query(contentUri, proj, null, null, null);
+		if (cursor != null) {
+			if (cursor.moveToFirst()) {
+				int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+				res = cursor.getString(column_index);
+			}
+			cursor.close();
+		}
+		if (res == null || !(new File(res).canRead())) {
+			File file = new File(contentUri.getPath());
+			if (file != null) {
+				res = file.getAbsolutePath();
+			}
+		}
 
-	    return res;
+		return res;
 	}
 
 	/**
